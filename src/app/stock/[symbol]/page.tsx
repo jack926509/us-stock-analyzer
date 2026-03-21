@@ -1,14 +1,24 @@
+import { StockDetailView } from "@/components/stock/StockDetailView"
+import { validateSymbol } from "@/lib/validations"
+import { notFound } from "next/navigation"
+
 interface Props {
   params: Promise<{ symbol: string }>
 }
 
 export default async function StockPage({ params }: Props) {
-  const { symbol } = await params
+  const { symbol: raw } = await params
+  const symbol = raw.toUpperCase()
 
-  return (
-    <main className="flex-1 p-6">
-      <h1 className="text-2xl font-bold text-white">{symbol}</h1>
-      <p className="text-muted-foreground mt-2">個股分析頁 — Prompt 4 實作後取代此頁</p>
-    </main>
-  )
+  if (!validateSymbol(symbol)) {
+    notFound()
+  }
+
+  return <StockDetailView symbol={symbol} />
+}
+
+export async function generateMetadata({ params }: Props) {
+  const { symbol: raw } = await params
+  const symbol = raw.toUpperCase()
+  return { title: `${symbol} — US Stock Analyzer` }
 }

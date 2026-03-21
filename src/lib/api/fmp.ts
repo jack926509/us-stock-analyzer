@@ -104,3 +104,122 @@ export async function getMarketIndices(): Promise<FmpQuote[]> {
   // SPY ≈ S&P 500, QQQ ≈ NASDAQ 100, DIA ≈ Dow Jones
   return getQuotes(["SPY", "QQQ", "DIA"])
 }
+
+// ─── Financial Statements ─────────────────────────────────────────────────────
+
+export interface FmpIncomeStatement {
+  date: string
+  symbol: string
+  reportedCurrency: string
+  revenue: number
+  costOfRevenue: number
+  grossProfit: number
+  grossProfitRatio: number
+  operatingExpenses: number
+  operatingIncome: number
+  operatingIncomeRatio: number
+  netIncome: number
+  netIncomeRatio: number
+  eps: number
+  epsDiluted: number
+  ebitda: number
+  weightedAverageShsOut: number
+}
+
+export interface FmpBalanceSheet {
+  date: string
+  symbol: string
+  totalAssets: number
+  totalLiabilities: number
+  totalStockholdersEquity: number
+  cashAndCashEquivalents: number
+  shortTermInvestments: number
+  inventory: number
+  totalDebt: number
+  longTermDebt: number
+  retainedEarnings: number
+  goodwill: number
+}
+
+export interface FmpCashFlowStatement {
+  date: string
+  symbol: string
+  operatingCashFlow: number
+  capitalExpenditure: number
+  freeCashFlow: number
+  dividendsPaid: number
+  commonStockRepurchased: number
+  netCashUsedForInvestingActivites: number
+  netCashUsedProvidedByFinancingActivities: number
+}
+
+export interface FmpKeyMetrics {
+  date: string
+  symbol: string
+  revenuePerShare: number
+  netIncomePerShare: number
+  roe: number
+  roa: number
+  roic: number
+  debtToEquity: number
+  currentRatio: number
+  quickRatio: number
+  peRatio: number
+  pbRatio: number
+  psRatio: number
+  evToEbitda: number
+  pegRatio: number
+  freeCashFlowYield: number
+  earningsYield: number
+  dividendYield: number
+}
+
+export interface FmpRatios {
+  date: string
+  symbol: string
+  grossProfitMargin: number
+  operatingProfitMargin: number
+  netProfitMargin: number
+  returnOnEquity: number
+  returnOnAssets: number
+  returnOnCapitalEmployed: number
+  debtEquityRatio: number
+  currentRatio: number
+  quickRatio: number
+  interestCoverage: number
+  priceToEarningsRatio: number
+  priceToBookRatioTTM: number
+  priceToSalesRatioTTM: number
+  enterpriseValueMultiple: number
+}
+
+async function fetchFinancials<T>(endpoint: string, symbol: string, period = "annual", limit = 5): Promise<T[]> {
+  try {
+    const { data } = await axios.get<T[]>(`${BASE_URL}/${endpoint}`, {
+      params: { symbol, period, limit, apikey: apiKey() },
+    })
+    return Array.isArray(data) ? data : []
+  } catch {
+    return []
+  }
+}
+
+export function getIncomeStatements(symbol: string, period = "annual", limit = 5) {
+  return fetchFinancials<FmpIncomeStatement>("income-statement", symbol, period, limit)
+}
+
+export function getBalanceSheets(symbol: string, period = "annual", limit = 5) {
+  return fetchFinancials<FmpBalanceSheet>("balance-sheet-statement", symbol, period, limit)
+}
+
+export function getCashFlowStatements(symbol: string, period = "annual", limit = 5) {
+  return fetchFinancials<FmpCashFlowStatement>("cash-flow-statement", symbol, period, limit)
+}
+
+export function getKeyMetrics(symbol: string, period = "annual", limit = 5) {
+  return fetchFinancials<FmpKeyMetrics>("key-metrics", symbol, period, limit)
+}
+
+export function getFinancialRatios(symbol: string, period = "annual", limit = 5) {
+  return fetchFinancials<FmpRatios>("ratios", symbol, period, limit)
+}
