@@ -4,7 +4,7 @@ export interface StockQuote {
   symbol: string
   name: string
   price: number
-  changesPercentage: number
+  changePercentage: number
   change: number
   dayLow: number
   dayHigh: number

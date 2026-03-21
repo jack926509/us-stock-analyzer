@@ -24,9 +24,9 @@ export async function GET() {
         .values({
           symbol: quote.symbol,
           price: quote.price,
-          changePercent: quote.changesPercentage,
+          changePercent: quote.changePercentage,
           marketCap: quote.marketCap,
-          peRatio: quote.pe,
+          peRatio: quote.pe ?? null,
           week52High: quote.yearHigh,
           week52Low: quote.yearLow,
         })
@@ -34,9 +34,9 @@ export async function GET() {
           target: stockPrices.symbol,
           set: {
             price: quote.price,
-            changePercent: quote.changesPercentage,
+            changePercent: quote.changePercentage,
             marketCap: quote.marketCap,
-            peRatio: quote.pe,
+            peRatio: quote.pe ?? null,
             week52High: quote.yearHigh,
             week52Low: quote.yearLow,
             updatedAt: new Date().toISOString(),

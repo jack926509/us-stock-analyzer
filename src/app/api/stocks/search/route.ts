@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const results = await searchStocks(query)
     // 只回傳前 10 筆，且限制美股交易所
     const filtered = results
-      .filter((r) => ["NASDAQ", "NYSE", "AMEX", "NYSE ARCA"].includes(r.exchangeShortName))
+      .filter((r) => ["NASDAQ", "NYSE", "AMEX", "NYSE ARCA", "NYSE MKT"].includes(r.exchange))
       .slice(0, 10)
     return Response.json(filtered)
   } catch (err) {

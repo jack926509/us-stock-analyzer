@@ -22,15 +22,17 @@ export function MetricsPanel({ data }: MetricsPanelProps) {
 
   // Top 5 漲幅 / 跌幅
   const sorted = [...withQuotes].sort(
-    (a, b) => (b.quote!.changesPercentage) - (a.quote!.changesPercentage)
+    (a, b) => (b.quote!.changePercentage) - (a.quote!.changePercentage)
   )
   const top5Gainers = sorted.slice(0, 5)
   const top5Losers = [...withQuotes]
-    .sort((a, b) => (a.quote!.changesPercentage) - (b.quote!.changesPercentage))
+    .sort((a, b) => (a.quote!.changePercentage) - (b.quote!.changePercentage))
     .slice(0, 5)
 
   // 平均 P/E
-  const peValues = withQuotes.map((d) => d.quote!.pe).filter((pe) => pe > 0 && pe < 1000)
+  const peValues = withQuotes
+    .map((d) => d.quote!.pe)
+    .filter((pe): pe is number => typeof pe === "number" && pe > 0 && pe < 1000)
   const avgPE = peValues.length > 0 ? peValues.reduce((s, v) => s + v, 0) / peValues.length : null
 
   // 產業分佈
@@ -66,7 +68,7 @@ export function MetricsPanel({ data }: MetricsPanelProps) {
               <div key={item.symbol} className="flex items-center justify-between">
                 <span className="font-mono text-sm font-bold text-white">{item.symbol}</span>
                 <span className="font-mono text-sm text-[#00d47e]">
-                  +{item.quote!.changesPercentage.toFixed(2)}%
+                  +{item.quote!.changePercentage.toFixed(2)}%
                 </span>
               </div>
             ))}
@@ -88,7 +90,7 @@ export function MetricsPanel({ data }: MetricsPanelProps) {
               <div key={item.symbol} className="flex items-center justify-between">
                 <span className="font-mono text-sm font-bold text-white">{item.symbol}</span>
                 <span className="font-mono text-sm text-[#ff4757]">
-                  {item.quote!.changesPercentage.toFixed(2)}%
+                  {item.quote!.changePercentage.toFixed(2)}%
                 </span>
               </div>
             ))}

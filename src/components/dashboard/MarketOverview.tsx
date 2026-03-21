@@ -13,7 +13,7 @@ const INDEX_LABELS: Record<string, string> = {
 }
 
 function IndexCard({ quote }: { quote: FmpQuote }) {
-  const isUp = quote.changesPercentage >= 0
+  const isUp = quote.changePercentage >= 0
   const label = INDEX_LABELS[quote.symbol] ?? quote.name
 
   return (
@@ -24,7 +24,7 @@ function IndexCard({ quote }: { quote: FmpQuote }) {
       </p>
       <div className={`mt-1 flex items-center gap-1 text-sm font-medium ${isUp ? "text-[#00d47e]" : "text-[#ff4757]"}`}>
         {isUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-        <span>{isUp ? "+" : ""}{quote.changesPercentage.toFixed(2)}%</span>
+        <span>{isUp ? "+" : ""}{quote.changePercentage.toFixed(2)}%</span>
         <span className="text-xs font-normal text-muted-foreground">
           ({isUp ? "+" : ""}{quote.change.toFixed(2)})
         </span>

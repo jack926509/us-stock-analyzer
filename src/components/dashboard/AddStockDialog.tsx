@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 interface SearchResult {
   symbol: string
   name: string
-  exchangeShortName: string
+  exchange: string
 }
 
 export function AddStockDialog() {
@@ -144,7 +144,7 @@ export function AddStockDialog() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="border-white/20 text-xs text-white/50">
-                    {r.exchangeShortName}
+                    {r.exchange}
                   </Badge>
                   {adding === r.symbol ? (
                     <Loader2 size={14} className="animate-spin text-muted-foreground" />

@@ -70,8 +70,8 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
         bv = b.quote?.price ?? 0
         break
       case "changePercent":
-        av = a.quote?.changesPercentage ?? 0
-        bv = b.quote?.changesPercentage ?? 0
+        av = a.quote?.changePercentage ?? 0
+        bv = b.quote?.changePercentage ?? 0
         break
       case "marketCap":
         av = a.quote?.marketCap ?? 0
@@ -153,7 +153,7 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
         <TableBody>
           {sorted.map((row) => {
             const q = row.quote
-            const isUp = (q?.changesPercentage ?? 0) >= 0
+            const isUp = (q?.changePercentage ?? 0) >= 0
             return (
               <TableRow
                 key={row.symbol}
@@ -180,7 +180,7 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
                       }`}
                     >
                       {isUp ? "+" : ""}
-                      {q.changesPercentage.toFixed(2)}%
+                      {q.changePercentage.toFixed(2)}%
                     </Badge>
                   ) : (
                     "—"
