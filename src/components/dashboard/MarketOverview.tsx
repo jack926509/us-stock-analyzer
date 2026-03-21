@@ -5,10 +5,11 @@ import { TrendingUp, TrendingDown } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import type { FmpQuote } from "@/lib/api/fmp"
 
+// ETF 代理：SPY ≈ S&P 500, QQQ ≈ NASDAQ 100, DIA ≈ Dow Jones
 const INDEX_LABELS: Record<string, string> = {
-  "^GSPC": "S&P 500",
-  "^IXIC": "NASDAQ",
-  "^DJI": "Dow Jones",
+  SPY: "S&P 500 (SPY)",
+  QQQ: "NASDAQ 100 (QQQ)",
+  DIA: "Dow Jones (DIA)",
 }
 
 function IndexCard({ quote }: { quote: FmpQuote }) {
@@ -50,11 +51,13 @@ export function MarketOverview() {
     refetchInterval: 60 * 1000,
   })
 
+  const quotes = Array.isArray(data) ? data : []
+
   return (
     <div className="flex gap-4">
-      {isLoading || !data
+      {isLoading || quotes.length === 0
         ? [0, 1, 2].map((i) => <IndexCardSkeleton key={i} />)
-        : data.map((q) => <IndexCard key={q.symbol} quote={q} />)}
+        : quotes.map((q) => <IndexCard key={q.symbol} quote={q} />)}
     </div>
   )
 }

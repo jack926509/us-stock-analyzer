@@ -79,9 +79,9 @@ export async function getQuotes(symbols: string[]): Promise<FmpQuote[]> {
   return Array.isArray(data) ? data : []
 }
 
+// 使用 ETF 作為大盤指數代理：SPY(S&P500), QQQ(NASDAQ), DIA(Dow Jones)
 export async function getMarketIndices(): Promise<FmpQuote[]> {
-  const indices = "%5EGSPC,%5EIXIC,%5EDJI" // S&P500, NASDAQ, DOW
-  const { data } = await axios.get<FmpQuote[]>(`${BASE_URL}/v3/quote/${indices}`, {
+  const { data } = await axios.get<FmpQuote[]>(`${BASE_URL}/v3/quote/SPY,QQQ,DIA`, {
     params: { apikey: apiKey() },
   })
   return Array.isArray(data) ? data : []
