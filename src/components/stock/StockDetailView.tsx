@@ -9,6 +9,8 @@ import { IncomeStatementTab } from "./IncomeStatementTab"
 import { BalanceSheetTab } from "./BalanceSheetTab"
 import { CashFlowTab } from "./CashFlowTab"
 import { KeyMetricsTab } from "./KeyMetricsTab"
+import { TradingViewWidget } from "@/components/charts/TradingViewWidget.dynamic"
+import { TradingViewTechAnalysis } from "@/components/charts/TradingViewTechAnalysis.dynamic"
 import type {
   FmpProfile,
   FmpIncomeStatement,
@@ -30,6 +32,16 @@ interface Props {
   symbol: string
 }
 
+// Map FMP exchange names to TradingView exchange prefix
+function getTVSymbol(symbol: string, exchange?: string): string {
+  if (!exchange) return symbol
+  const e = exchange.toUpperCase()
+  if (e.includes("NASDAQ")) return `NASDAQ:${symbol}`
+  if (e.includes("NYSE")) return `NYSE:${symbol}`
+  if (e.includes("AMEX") || e.includes("ARCA")) return `AMEX:${symbol}`
+  return symbol
+}
+
 export function StockDetailView({ symbol }: Props) {
   const [period, setPeriod] = useState<"annual" | "quarterly">("annual")
 
@@ -40,7 +52,7 @@ export function StockDetailView({ symbol }: Props) {
         if (!r.ok) throw new Error("Profile fetch failed")
         return r.json()
       }),
-    staleTime: 30 * 60 * 1000, // 30 min
+    staleTime: 30 * 60 * 1000,
     retry: 1,
   })
 
@@ -51,9 +63,11 @@ export function StockDetailView({ symbol }: Props) {
         if (!r.ok) throw new Error("Financials fetch failed")
         return r.json()
       }),
-    staleTime: 24 * 60 * 60 * 1000, // 24h (matches server cache)
+    staleTime: 24 * 60 * 60 * 1000,
     retry: 1,
   })
+
+  const tvSymbol = getTVSymbol(symbol, profile?.exchange ?? profile?.exchangeFullName)
 
   return (
     <div className="flex flex-col bg-[#0a0e1a]">
@@ -66,7 +80,33 @@ export function StockDetailView({ symbol }: Props) {
         change={profile?.change}
       />
 
-      {/* Main content */}
+      {/* TradingView Chart + Technical Analysis */}
+      <div className="mx-auto w-full max-w-screen-2xl px-6 pt-5">
+        <div className="flex gap-4">
+          {/* Main chart */}
+          <div className="min-w-0 flex-1">
+            <TradingViewWidget symbol={tvSymbol} height={500} />
+          </div>
+
+          {/* Technical Analysis sidebar — visible on xl screens */}
+          <div className="hidden w-[320px] shrink-0 xl:block">
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/30">
+              技術分析
+            </div>
+            <TradingViewTechAnalysis symbol={tvSymbol} width={320} height={490} />
+          </div>
+        </div>
+
+        {/* Tech Analysis on smaller screens — below chart */}
+        <div className="mt-4 xl:hidden">
+          <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/30">
+            技術分析
+          </div>
+          <TradingViewTechAnalysis symbol={tvSymbol} width="100%" height={425} />
+        </div>
+      </div>
+
+      {/* Financial Data Tabs */}
       <main className="mx-auto w-full max-w-screen-2xl flex-1 px-6 py-6">
         <Tabs defaultValue="overview" className="gap-0">
           <div className="mb-4 flex items-center justify-between gap-4">
@@ -79,7 +119,7 @@ export function StockDetailView({ symbol }: Props) {
               <TabsTrigger value="ai" className="text-xs">AI 分析</TabsTrigger>
             </TabsList>
 
-            {/* Period toggle for statement tabs */}
+            {/* Period toggle */}
             <div className="flex items-center gap-1 rounded-lg bg-white/5 p-1">
               <button
                 onClick={() => setPeriod("annual")}
