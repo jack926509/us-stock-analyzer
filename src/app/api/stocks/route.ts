@@ -1,7 +1,7 @@
 import { db } from "@/lib/db"
 import { stockPrices, watchlist } from "@/lib/db/schema"
 import { getCompanyProfile, getQuote } from "@/lib/api/fmp"
-import { getFinnhubQuote } from "@/lib/api/finnhub"
+import { getFinnhubQuote, getFinnhubProfile } from "@/lib/api/finnhub"
 import { validateSymbol } from "@/lib/validations"
 import { eq } from "drizzle-orm"
 import type { FmpQuote } from "@/lib/api/fmp"
@@ -84,18 +84,36 @@ export async function POST(req: Request) {
       return Response.json({ error: "Stock already in watchlist", code: "API_ERROR" }, { status: 409 })
     }
 
-    // 從 FMP 拉取公司資訊
-    const profile = await getCompanyProfile(raw)
-    if (!profile) {
-      return Response.json({ error: "Stock not found", code: "NOT_FOUND" }, { status: 404 })
+    // FMP 優先取公司資訊，失敗時 fallback 到 Finnhub
+    const fmpProfile = await getCompanyProfile(raw)
+    let companyName = raw
+    let sector: string | null = null
+    let resolvedSymbol = raw
+
+    if (fmpProfile) {
+      companyName = fmpProfile.companyName
+      sector = fmpProfile.sector || null
+      resolvedSymbol = fmpProfile.symbol
+    } else {
+      const fhProfile = await getFinnhubProfile(raw)
+      if (fhProfile) {
+        companyName = fhProfile.name
+        sector = fhProfile.finnhubIndustry || null
+      } else {
+        // 最後確認 Finnhub 至少能取得報價
+        const quote = await getFinnhubQuote(raw)
+        if (!quote) {
+          return Response.json({ error: "Stock not found", code: "NOT_FOUND" }, { status: 404 })
+        }
+      }
     }
 
     const [inserted] = await db
       .insert(watchlist)
       .values({
-        symbol: profile.symbol,
-        name: profile.companyName,
-        sector: profile.sector || null,
+        symbol: resolvedSymbol,
+        name: companyName,
+        sector,
       })
       .returning()
 

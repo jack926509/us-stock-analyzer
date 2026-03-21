@@ -66,19 +66,27 @@ export async function searchStocks(query: string): Promise<FmpSearchResult[]> {
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
 export async function getCompanyProfile(symbol: string): Promise<FmpProfile | null> {
-  const { data } = await axios.get<FmpProfile[]>(`${BASE_URL}/profile`, {
-    params: { symbol, apikey: apiKey() },
-  })
-  return Array.isArray(data) && data.length > 0 ? data[0] : null
+  try {
+    const { data } = await axios.get<FmpProfile[]>(`${BASE_URL}/profile`, {
+      params: { symbol, apikey: apiKey() },
+    })
+    return Array.isArray(data) && data.length > 0 ? data[0] : null
+  } catch {
+    return null
+  }
 }
 
 // ─── Quote (single symbol only on free tier) ─────────────────────────────────
 
 export async function getQuote(symbol: string): Promise<FmpQuote | null> {
-  const { data } = await axios.get<FmpQuote[]>(`${BASE_URL}/quote`, {
-    params: { symbol, apikey: apiKey() },
-  })
-  return Array.isArray(data) && data.length > 0 ? data[0] : null
+  try {
+    const { data } = await axios.get<FmpQuote[]>(`${BASE_URL}/quote`, {
+      params: { symbol, apikey: apiKey() },
+    })
+    return Array.isArray(data) && data.length > 0 ? data[0] : null
+  } catch {
+    return null
+  }
 }
 
 // Fetch multiple quotes concurrently (each is a separate API call on free tier)
