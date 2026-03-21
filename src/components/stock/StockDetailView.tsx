@@ -11,6 +11,8 @@ import { CashFlowTab } from "./CashFlowTab"
 import { KeyMetricsTab } from "./KeyMetricsTab"
 import { TradingViewWidget } from "@/components/charts/TradingViewWidget.dynamic"
 import { TradingViewTechAnalysis } from "@/components/charts/TradingViewTechAnalysis.dynamic"
+import { WallStreetAnalysis } from "@/components/analysis/WallStreetAnalysis"
+import { NewsPanel } from "@/components/analysis/NewsPanel"
 import type {
   FmpProfile,
   FmpIncomeStatement,
@@ -180,14 +182,17 @@ export function StockDetailView({ symbol }: Props) {
           </TabsContent>
 
           <TabsContent value="ai">
-            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-              <div className="flex size-12 items-center justify-center rounded-full bg-[#00d47e]/10">
-                <span className="text-xl">🤖</span>
+            <div className="grid grid-cols-1 gap-6 py-2 xl:grid-cols-[1fr_360px]">
+              {/* AI Analysis */}
+              <WallStreetAnalysis symbol={symbol} price={profile?.price} />
+
+              {/* News sidebar */}
+              <div className="min-w-0">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/30">
+                  近期新聞
+                </h3>
+                <NewsPanel symbol={symbol} />
               </div>
-              <p className="text-sm font-medium text-white/60">AI 分析引擎</p>
-              <p className="max-w-xs text-xs text-white/30">
-                華爾街級別 AI 研究報告將在 Prompt 6 實作後顯示於此
-              </p>
             </div>
           </TabsContent>
         </Tabs>
