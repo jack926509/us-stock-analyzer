@@ -1,9 +1,9 @@
-import { getMarketIndices } from "@/lib/api/fmp"
+import { getFinnhubMarketIndices } from "@/lib/api/finnhub"
 
-// GET /api/market — S&P 500, NASDAQ, DOW 即時報價
+// GET /api/market — S&P 500 (SPY) / NASDAQ 100 (QQQ) / Dow Jones (DIA) via Finnhub
 export async function GET() {
   try {
-    const data = await getMarketIndices()
+    const data = await getFinnhubMarketIndices()
     return Response.json(data)
   } catch (err) {
     console.error("[GET /api/market]", err)

@@ -1,8 +1,17 @@
 import { db } from "@/lib/db"
 import { stockPrices, watchlist } from "@/lib/db/schema"
-import { getCompanyProfile, getQuotes } from "@/lib/api/fmp"
+import { getCompanyProfile, getQuote } from "@/lib/api/fmp"
+import { getFinnhubQuote } from "@/lib/api/finnhub"
 import { validateSymbol } from "@/lib/validations"
 import { eq } from "drizzle-orm"
+import type { FmpQuote } from "@/lib/api/fmp"
+
+// FMP 優先，失敗時 fallback 到 Finnhub
+async function getQuoteWithFallback(symbol: string): Promise<FmpQuote | null> {
+  const fmpQuote = await getQuote(symbol)
+  if (fmpQuote && fmpQuote.price > 0) return fmpQuote
+  return getFinnhubQuote(symbol)
+}
 
 // GET /api/stocks — 取得追蹤清單含最新報價
 export async function GET() {
@@ -14,7 +23,10 @@ export async function GET() {
     }
 
     const symbols = items.map((item) => item.symbol)
-    const quotes = await getQuotes(symbols)
+    const quoteResults = await Promise.allSettled(symbols.map(getQuoteWithFallback))
+    const quotes = quoteResults
+      .map((r) => (r.status === "fulfilled" ? r.value : null))
+      .filter((q): q is FmpQuote => q !== null)
     const quoteMap = new Map(quotes.map((q) => [q.symbol, q]))
 
     // 更新 stock_prices 快取
