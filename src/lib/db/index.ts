@@ -1,10 +1,12 @@
-import Database from "better-sqlite3"
-import { drizzle } from "drizzle-orm/better-sqlite3"
+import { createClient } from "@libsql/client"
+import { drizzle } from "drizzle-orm/libsql"
 import * as schema from "./schema"
 
-const DATABASE_URL = process.env.DATABASE_URL ?? "file:./dev.db"
-// better-sqlite3 expects a file path without the "file:" prefix
-const dbPath = DATABASE_URL.replace(/^file:/, "")
+// Production: TURSO_DATABASE_URL + TURSO_AUTH_TOKEN
+// Development: local SQLite file (file:./dev.db)
+const client = createClient({
+  url: process.env.TURSO_DATABASE_URL ?? process.env.DATABASE_URL ?? "file:./dev.db",
+  authToken: process.env.TURSO_AUTH_TOKEN,
+})
 
-const sqlite = new Database(dbPath)
-export const db = drizzle(sqlite, { schema })
+export const db = drizzle(client, { schema })
