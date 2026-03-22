@@ -1,9 +1,8 @@
 import axios from "axios"
 import { validateSymbol } from "@/lib/validations"
 
-const FMP_V3 = "https://financialmodelingprep.com/api/v3"
-const FMP_V4 = "https://financialmodelingprep.com/api/v4"
 const FMP_STABLE = "https://financialmodelingprep.com/stable"
+const FMP_V3 = "https://financialmodelingprep.com/api/v3"
 
 function apiKey() {
   const key = process.env.FMP_API_KEY
@@ -32,12 +31,15 @@ async function fetchPeerData(symbol: string): Promise<PeerData | null> {
     const [profileRes, metricsRes, ratiosRes] = await Promise.allSettled([
       axios.get<Record<string, unknown>[]>(`${FMP_STABLE}/profile`, {
         params: { symbol, apikey: apiKey() },
+        timeout: 8000,
       }),
-      axios.get<Record<string, unknown>[]>(`${FMP_V3}/key-metrics-ttm/${symbol}`, {
-        params: { apikey: apiKey() },
+      axios.get<Record<string, unknown>[]>(`${FMP_STABLE}/key-metrics`, {
+        params: { symbol, period: "annual", limit: 1, apikey: apiKey() },
+        timeout: 8000,
       }),
-      axios.get<Record<string, unknown>[]>(`${FMP_V3}/ratios-ttm/${symbol}`, {
-        params: { apikey: apiKey() },
+      axios.get<Record<string, unknown>[]>(`${FMP_STABLE}/ratios`, {
+        params: { symbol, period: "annual", limit: 1, apikey: apiKey() },
+        timeout: 8000,
       }),
     ])
 
@@ -58,17 +60,17 @@ async function fetchPeerData(symbol: string): Promise<PeerData | null> {
     return {
       symbol,
       companyName: String(profile.companyName ?? symbol),
-      marketCap: Number(profile.mktCap ?? profile.marketCap ?? 0),
+      marketCap: Number(profile.marketCap ?? 0),
       price: Number(profile.price ?? 0),
       sector: String(profile.sector ?? ""),
-      // key-metrics-ttm field names (FMP v3)
-      peRatio: num(km?.peRatioTTM) ?? num(rt?.priceEarningsRatioTTM),
-      pbRatio: num(km?.pbRatioTTM) ?? num(rt?.priceToBookRatioTTM),
-      psRatio: num(km?.priceToSalesRatioTTM) ?? num(rt?.priceToSalesRatioTTM),
-      evToEbitda: num(km?.enterpriseValueOverEBITDATTM) ?? num(rt?.enterpriseValueMultipleTTM),
-      roe: num(km?.returnOnEquityTTM) ?? num(rt?.returnOnEquityTTM),
-      grossMargin: num(km?.grossProfitMarginTTM) ?? num(rt?.grossProfitMarginTTM),
-      revenueGrowth: num(km?.revenueGrowthTTM) ?? null,
+      // stable API field names (no TTM suffix)
+      peRatio: num(km?.peRatio) ?? num(rt?.priceToEarningsRatio),
+      pbRatio: num(km?.pbRatio) ?? num(rt?.priceToBookRatioTTM),
+      psRatio: num(km?.psRatio) ?? num(rt?.priceToSalesRatioTTM),
+      evToEbitda: num(km?.evToEbitda) ?? num(rt?.enterpriseValueMultiple),
+      roe: num(km?.roe) ?? num(rt?.returnOnEquity),
+      grossMargin: num(rt?.grossProfitMargin),
+      revenueGrowth: null, // not available in stable annual endpoints
       isTarget: false,
     }
   } catch {
@@ -85,19 +87,22 @@ async function getPeersFromScreener(
 ): Promise<string[]> {
   try {
     interface ScreenerItem { symbol: string; marketCap: number; isEtf: boolean }
+    const exchangeShort = exchange.includes("NASDAQ") ? "NASDAQ"
+      : exchange.includes("NYSE") ? "NYSE"
+      : exchange
     const { data } = await axios.get<ScreenerItem[]>(`${FMP_V3}/stock-screener`, {
       params: {
         sector,
-        exchange: exchange.includes("NASDAQ") ? "NASDAQ" : exchange.includes("NYSE") ? "NYSE" : exchange,
+        exchange: exchangeShort,
         isEtf: false,
         limit: 30,
         apikey: apiKey(),
       },
+      timeout: 8000,
     })
     if (!Array.isArray(data) || data.length === 0) return []
 
-    // Sort by closest market cap to target, exclude target itself
-    const candidates = data
+    return data
       .filter((s) => s.symbol !== targetSymbol && !s.isEtf && s.marketCap > 0)
       .sort((a, b) => {
         const diffA = Math.abs(Math.log(a.marketCap / Math.max(targetMarketCap, 1)))
@@ -106,8 +111,6 @@ async function getPeersFromScreener(
       })
       .slice(0, 5)
       .map((s) => s.symbol)
-
-    return candidates
   } catch {
     return []
   }
@@ -125,19 +128,20 @@ export async function GET(
       return Response.json({ error: "Invalid symbol" }, { status: 400 })
     }
 
-    // Fetch target profile first (needed for screener fallback)
+    // Fetch target profile first
     let targetSector = ""
     let targetExchange = ""
     let targetMarketCap = 0
     try {
       const { data } = await axios.get<Record<string, unknown>[]>(`${FMP_STABLE}/profile`, {
         params: { symbol, apikey: apiKey() },
+        timeout: 8000,
       })
       const p = Array.isArray(data) ? data[0] : null
       if (p) {
         targetSector = String(p.sector ?? "")
-        targetExchange = String(p.exchangeShortName ?? p.exchange ?? "")
-        targetMarketCap = Number(p.mktCap ?? p.marketCap ?? 0)
+        targetExchange = String(p.exchange ?? p.exchangeFullName ?? "")
+        targetMarketCap = Number(p.marketCap ?? 0)
       }
     } catch { /* ignore */ }
 
@@ -145,15 +149,15 @@ export async function GET(
     let peerSymbols: string[] = []
     try {
       const { data } = await axios.get<Array<{ peersList: string[] }>>(
-        `${FMP_V4}/stock_peers`,
-        { params: { symbol, apikey: apiKey() } }
+        `https://financialmodelingprep.com/api/v4/stock_peers`,
+        { params: { symbol, apikey: apiKey() }, timeout: 8000 }
       )
       if (Array.isArray(data) && data[0]?.peersList) {
         peerSymbols = data[0].peersList.slice(0, 5)
       }
     } catch { /* may not be available on free tier */ }
 
-    // Fallback: use sector screener if no peers found
+    // Fallback: use sector screener
     if (peerSymbols.length === 0 && targetSector) {
       peerSymbols = await getPeersFromScreener(targetSector, targetExchange, symbol, targetMarketCap)
     }

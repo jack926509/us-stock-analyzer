@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 import { analysisReports } from "@/lib/db/schema"
 import { validateSymbol } from "@/lib/validations"
 import { ANALYST_SYSTEM_PROMPT, buildUserPrompt, PROMPT_VERSION } from "@/config/analyst-prompt"
-import { eq, desc } from "drizzle-orm"
+import { eq, desc, and } from "drizzle-orm"
 import {
   getIncomeStatements,
   getBalanceSheets,
@@ -171,6 +171,36 @@ export async function GET(
   } catch (err) {
     console.error("[GET /api/analysis]", err)
     return Response.json({ error: "Failed to fetch reports", code: "API_ERROR" }, { status: 500 })
+  }
+}
+
+// ─── DELETE — remove a specific report ───────────────────────────────────────
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ symbol: string }> }
+) {
+  try {
+    const { symbol: raw } = await params
+    const symbol = raw.toUpperCase()
+    if (!validateSymbol(symbol)) {
+      return Response.json({ error: "Invalid symbol" }, { status: 400 })
+    }
+
+    const url = new URL(req.url)
+    const id = parseInt(url.searchParams.get("id") ?? "")
+    if (isNaN(id)) {
+      return Response.json({ error: "Invalid id" }, { status: 400 })
+    }
+
+    await db
+      .delete(analysisReports)
+      .where(and(eq(analysisReports.id, id), eq(analysisReports.symbol, symbol)))
+
+    return Response.json({ ok: true })
+  } catch (err) {
+    console.error("[DELETE /api/analysis]", err)
+    return Response.json({ error: "Failed to delete report" }, { status: 500 })
   }
 }
 

@@ -26,9 +26,9 @@ function fmtMarketCap(n: number) {
   return n.toFixed(0)
 }
 
-function CompanyLogo({ src, name, symbol }: { src: string; name: string; symbol: string }) {
-  const [failed, setFailed] = useState(false)
-  if (failed) {
+function CompanyLogo({ srcs, name, symbol }: { srcs: string[]; name: string; symbol: string }) {
+  const [idx, setIdx] = useState(0)
+  if (idx >= srcs.length) {
     return (
       <div className="flex size-full items-center justify-center rounded-lg bg-black/[0.08] text-sm font-bold text-stone-500">
         {symbol.slice(0, 2)}
@@ -37,15 +37,28 @@ function CompanyLogo({ src, name, symbol }: { src: string; name: string; symbol:
   }
   return (
     <Image
-      src={src}
+      key={srcs[idx]}
+      src={srcs[idx]}
       alt={name}
       width={48}
       height={48}
       className="size-full object-contain"
       unoptimized
-      onError={() => setFailed(true)}
+      onError={() => setIdx((i) => i + 1)}
     />
   )
+}
+
+function buildLogoSrcs(symbol: string, image?: string, website?: string): string[] {
+  const srcs: string[] = []
+  if (image) srcs.push(image)
+  if (website) {
+    try {
+      srcs.push(`https://logo.clearbit.com/${new URL(website).hostname}`)
+    } catch { /* invalid URL */ }
+  }
+  srcs.push(`https://financialmodelingprep.com/image-stock/${symbol}.png`)
+  return srcs
 }
 
 export function StockHeader({ profile, symbol, price, changePercentage, change }: StockHeaderProps) {
@@ -70,7 +83,7 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
           {/* Logo — fall back to image-stock URL, then initials */}
           <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/5">
             <CompanyLogo
-              src={profile?.image || `https://financialmodelingprep.com/image-stock/${symbol}.png`}
+              srcs={buildLogoSrcs(symbol, profile?.image, profile?.website)}
               name={profile?.companyName ?? symbol}
               symbol={symbol}
             />

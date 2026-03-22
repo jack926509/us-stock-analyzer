@@ -16,7 +16,7 @@ const securityHeaders = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://s3.tradingview.com https://*.tradingview.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://financialmodelingprep.com https://*.tradingview.com",
+      "img-src 'self' data: blob: https://financialmodelingprep.com https://*.tradingview.com https://logo.clearbit.com",
       "connect-src 'self' https://*.tradingview.com https://financialmodelingprep.com https://finnhub.io https://*.turso.io",
       "frame-src https://*.tradingview.com",
       "font-src 'self'",

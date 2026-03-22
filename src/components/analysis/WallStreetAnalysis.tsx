@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp } from "lucide-react"
+import { Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { AnalysisReport } from "@/types/index"
 
@@ -79,37 +79,47 @@ function HistoryCard({
   report,
   isActive,
   onClick,
+  onDelete,
 }: {
   report: AnalysisReport
   isActive: boolean
   onClick: () => void
+  onDelete: () => void
 }) {
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        "w-full rounded-lg p-3 text-left transition-colors ring-1",
+        "relative rounded-lg p-3 ring-1 transition-colors",
         isActive
           ? "bg-black/[0.06] ring-black/[0.15]"
-          : "bg-[#faf6f1] ring-black/[0.06] hover:bg-black/5"
+          : "bg-[#faf6f1] ring-black/[0.06]"
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Clock size={11} className="shrink-0 text-stone-500" />
-          <span className="text-xs text-stone-600">
-            {report.createdAt ? new Date(report.createdAt).toLocaleDateString("zh-TW") : "—"}
-          </span>
+      <button onClick={onClick} className="w-full text-left">
+        <div className="flex items-center justify-between gap-2 pr-6">
+          <div className="flex items-center gap-2">
+            <Clock size={11} className="shrink-0 text-stone-500" />
+            <span className="text-xs text-stone-600">
+              {report.createdAt ? new Date(report.createdAt).toLocaleDateString("zh-TW") : "—"}
+            </span>
+          </div>
+          {report.rating && <RatingBadge rating={report.rating} />}
         </div>
-        {report.rating && <RatingBadge rating={report.rating} />}
-      </div>
-      <p className="mt-1 text-[11px] text-stone-500">{report.modelVersion} · {report.promptVersion}</p>
-      {report.targetPriceLow && report.targetPriceHigh && (
-        <p className="mt-0.5 text-[11px] text-stone-600">
-          目標價 ${report.targetPriceLow} – ${report.targetPriceHigh}
-        </p>
-      )}
-    </button>
+        <p className="mt-1 text-[11px] text-stone-500">{report.modelVersion} · {report.promptVersion}</p>
+        {report.targetPriceLow && report.targetPriceHigh && (
+          <p className="mt-0.5 text-[11px] text-stone-600">
+            目標價 ${report.targetPriceLow} – ${report.targetPriceHigh}
+          </p>
+        )}
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete() }}
+        className="absolute right-2 top-2 rounded p-1 text-stone-400 hover:bg-red-500/10 hover:text-red-500 transition-colors"
+        title="刪除此報告"
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
   )
 }
 
@@ -141,6 +151,15 @@ export function WallStreetAnalysis({ symbol, price }: Props) {
     ? reports.find((r) => r.id === activeReportId)
     : null
   const displayContent = selectedReport ? selectedReport.content : streamContent
+
+  async function handleDelete(reportId: number) {
+    await fetch(`/api/analysis/${symbol}?id=${reportId}`, { method: "DELETE" })
+    await queryClient.invalidateQueries({ queryKey: ["analysis-reports", symbol] })
+    if (activeReportId === reportId) {
+      setActiveReportId(null)
+      setStreamContent("")
+    }
+  }
 
   async function handleGenerate() {
     if (isStreaming) {
@@ -257,6 +276,7 @@ export function WallStreetAnalysis({ symbol, price }: Props) {
                 setActiveReportId(activeReportId === r.id ? null : r.id)
                 setStreamContent("")
               }}
+              onDelete={() => handleDelete(r.id)}
             />
           ))}
         </div>
