@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowLeft, ExternalLink } from "lucide-react"
@@ -25,6 +26,28 @@ function fmtMarketCap(n: number) {
   return n.toFixed(0)
 }
 
+function CompanyLogo({ src, name, symbol }: { src: string; name: string; symbol: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return (
+      <div className="flex size-full items-center justify-center rounded-lg bg-black/[0.08] text-sm font-bold text-stone-500">
+        {symbol.slice(0, 2)}
+      </div>
+    )
+  }
+  return (
+    <Image
+      src={src}
+      alt={name}
+      width={48}
+      height={48}
+      className="size-full object-contain"
+      unoptimized
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
 export function StockHeader({ profile, symbol, price, changePercentage, change }: StockHeaderProps) {
   const displayPrice = price ?? profile?.price ?? 0
   const displayChange = change ?? profile?.change ?? 0
@@ -44,19 +67,14 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
         </Link>
 
         <div className="flex flex-wrap items-start gap-4">
-          {/* Logo */}
-          {profile?.image && (
-            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/5">
-              <Image
-                src={profile.image}
-                alt={profile.companyName}
-                width={48}
-                height={48}
-                className="size-full object-contain"
-                unoptimized
-              />
-            </div>
-          )}
+          {/* Logo — fall back to image-stock URL, then initials */}
+          <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/5">
+            <CompanyLogo
+              src={profile?.image || `https://financialmodelingprep.com/image-stock/${symbol}.png`}
+              name={profile?.companyName ?? symbol}
+              symbol={symbol}
+            />
+          </div>
 
           {/* Name + symbol */}
           <div className="min-w-0 flex-1">

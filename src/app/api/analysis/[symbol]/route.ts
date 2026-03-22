@@ -5,8 +5,15 @@ import { analysisReports } from "@/lib/db/schema"
 import { validateSymbol } from "@/lib/validations"
 import { ANALYST_SYSTEM_PROMPT, buildUserPrompt, PROMPT_VERSION } from "@/config/analyst-prompt"
 import { eq, desc } from "drizzle-orm"
-import { getAVIncomeStatements, getAVBalanceSheets, getAVCashFlowStatements, getAVOverview } from "@/lib/api/alphavantage"
-import { getCompanyProfile } from "@/lib/api/fmp"
+import {
+  getIncomeStatements,
+  getBalanceSheets,
+  getCashFlowStatements,
+  getKeyMetrics,
+  getFinancialRatios,
+  getQuote,
+  getCompanyProfile,
+} from "@/lib/api/fmp"
 import { getFinnhubProfile, getFinnhubQuote } from "@/lib/api/finnhub"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -22,9 +29,9 @@ function fmtB(n: number) {
 
 async function buildFinancialSummary(symbol: string): Promise<string> {
   const [income, cashflow, balance] = await Promise.all([
-    getAVIncomeStatements(symbol, "annual", 3),
-    getAVCashFlowStatements(symbol, "annual", 3),
-    getAVBalanceSheets(symbol, "annual", 3),
+    getIncomeStatements(symbol, "annual", 3),
+    getCashFlowStatements(symbol, "annual", 3),
+    getBalanceSheets(symbol, "annual", 3),
   ])
 
   if (!income.length) return "（無法取得財務數據）"
@@ -89,10 +96,13 @@ async function buildNewsSummary(symbol: string): Promise<string> {
   }
 }
 
-async function buildKeyMetricsSummary(symbol: string, overviewData: Awaited<ReturnType<typeof getAVOverview>>): Promise<string> {
-  if (!overviewData) return "（無法取得核心指標）"
-  const km = overviewData.keyMetrics[0]
-  const r = overviewData.ratios[0]
+async function buildKeyMetricsSummary(symbol: string): Promise<string> {
+  const [kms, ratios] = await Promise.all([
+    getKeyMetrics(symbol, "annual", 1).catch(() => []),
+    getFinancialRatios(symbol, "annual", 1).catch(() => []),
+  ])
+  const km = kms[0]
+  const r = ratios[0]
   if (!km && !r) return "（無法取得核心指標）"
 
   const parts: string[] = []
@@ -179,44 +189,37 @@ export async function POST(
 
   // Rate limiting is handled by middleware.ts (3 POST requests / 60s per IP)
 
-  // Collect all context data in parallel
-  const [fmpProfile, overviewData, financialSummary] = await Promise.all([
+  // Collect all context data in parallel (all from FMP — no Alpha Vantage)
+  const [fmpProfile, fmpQuote, financialSummary, keyMetricsSummary, newsSummary] = await Promise.all([
     getCompanyProfile(symbol).catch(() => null),
-    getAVOverview(symbol).catch(() => null),
+    getQuote(symbol).catch(() => null),
     buildFinancialSummary(symbol),
-  ])
-
-  // Profile fallback
-  let companyName = symbol
-  let price = 0
-  let marketCap = "N/A"
-  let pe: number | null = null
-  let yearHigh = 0
-  let yearLow = 0
-
-  if (fmpProfile) {
-    companyName = fmpProfile.companyName
-    price = fmpProfile.price
-    marketCap = fmpProfile.marketCap > 0 ? `$${(fmpProfile.marketCap / 1e9).toFixed(1)}B` : "N/A"
-  } else {
-    const fhProfile = await getFinnhubProfile(symbol).catch(() => null)
-    if (fhProfile) companyName = fhProfile.name
-    const quote = await getFinnhubQuote(symbol).catch(() => null)
-    if (quote) {
-      price = quote.price
-      yearHigh = quote.yearHigh
-      yearLow = quote.yearLow
-    }
-  }
-
-  if (overviewData?.keyMetrics[0]) {
-    pe = overviewData.keyMetrics[0].peRatio || null
-  }
-
-  const [keyMetricsSummary, newsSummary] = await Promise.all([
-    buildKeyMetricsSummary(symbol, overviewData),
+    buildKeyMetricsSummary(symbol),
     buildNewsSummary(symbol),
   ])
+
+  // Profile fallback to Finnhub if FMP returns nothing
+  let companyName = fmpProfile?.companyName ?? symbol
+  let price = fmpProfile?.price ?? fmpQuote?.price ?? 0
+  let marketCap = fmpProfile?.marketCap && fmpProfile.marketCap > 0
+    ? `$${(fmpProfile.marketCap / 1e9).toFixed(1)}B`
+    : "N/A"
+  let pe: number | null = fmpQuote?.pe ?? null
+  let yearHigh = fmpQuote?.yearHigh ?? 0
+  let yearLow = fmpQuote?.yearLow ?? 0
+
+  if (!fmpProfile) {
+    const fhProfile = await getFinnhubProfile(symbol).catch(() => null)
+    if (fhProfile) companyName = fhProfile.name
+    if (!fmpQuote) {
+      const fhQuote = await getFinnhubQuote(symbol).catch(() => null)
+      if (fhQuote) {
+        price = fhQuote.price
+        yearHigh = fhQuote.yearHigh
+        yearLow = fhQuote.yearLow
+      }
+    }
+  }
 
   const range52w = yearHigh && yearLow
     ? `$${yearLow.toFixed(2)} – $${yearHigh.toFixed(2)}`
