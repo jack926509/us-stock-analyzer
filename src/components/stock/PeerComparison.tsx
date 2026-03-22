@@ -183,6 +183,7 @@ export function PeerComparison({ symbol }: Props) {
             <thead>
               <tr className="border-b border-white/8 bg-white">
                 <th className="px-4 py-2.5 text-left font-medium text-stone-600">公司</th>
+                <th className="px-3 py-2.5 text-right font-medium text-stone-600">股價</th>
                 <th className="px-3 py-2.5 text-right font-medium text-stone-600">市值</th>
                 {COLUMNS.map((col) => (
                   <th key={col.key} className="px-3 py-2.5 text-right font-medium text-stone-600">
@@ -215,6 +216,9 @@ export function PeerComparison({ symbol }: Props) {
                           <p className="text-[10px] text-stone-500 truncate max-w-[120px]">{peer.companyName}</p>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-num text-stone-700">
+                      {peer.price > 0 ? `$${peer.price.toFixed(2)}` : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-right text-stone-500">
                       {fmtMktCap(peer.marketCap)}
