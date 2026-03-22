@@ -87,7 +87,7 @@ export function PeerComparison({ symbol }: Props) {
   const { data: peers = [], isLoading } = useQuery<PeerData[]>({
     queryKey: ["peers", symbol],
     queryFn: () => fetch(`/api/peers/${symbol}`).then((r) => r.json()),
-    staleTime: 60 * 60 * 1000, // 1h
+    staleTime: 24 * 60 * 60 * 1000, // 24h — peer data changes infrequently
     retry: 1,
   })
 

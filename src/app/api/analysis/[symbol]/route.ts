@@ -257,24 +257,29 @@ export async function POST(
             controller.enqueue(encoder.encode(text))
           }
         }
-
-        // Save to DB after full response received
-        const rating = parseRating(fullContent)
-        const { low, high } = parseTargetPrice(fullContent)
-
-        await db.insert(analysisReports).values({
-          symbol,
-          content: fullContent,
-          rating,
-          targetPriceLow: low,
-          targetPriceHigh: high,
-          modelVersion: "claude-sonnet-4-6",
-          promptVersion: PROMPT_VERSION,
-        })
       } catch (err) {
         console.error("[POST /api/analysis stream]", err)
         controller.enqueue(encoder.encode("\n\n⚠️ 分析生成過程中發生錯誤，請稍後重試。"))
       } finally {
+        // Save whatever was generated — even if stream was interrupted mid-way.
+        // Threshold: 100 chars to avoid storing bare error messages.
+        if (fullContent.length > 100) {
+          try {
+            const rating = parseRating(fullContent)
+            const { low, high } = parseTargetPrice(fullContent)
+            await db.insert(analysisReports).values({
+              symbol,
+              content: fullContent,
+              rating,
+              targetPriceLow: low,
+              targetPriceHigh: high,
+              modelVersion: "claude-sonnet-4-6",
+              promptVersion: PROMPT_VERSION,
+            })
+          } catch (dbErr) {
+            console.error("[POST /api/analysis] DB save failed:", dbErr)
+          }
+        }
         controller.close()
       }
     },
