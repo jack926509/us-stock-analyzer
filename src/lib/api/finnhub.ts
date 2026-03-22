@@ -30,32 +30,55 @@ interface FinnhubProfile {
   weburl: string
 }
 
+interface FinnhubMetricResponse {
+  metric: {
+    "52WeekHigh"?: number
+    "52WeekLow"?: number
+    peAnnual?: number
+    peTTM?: number
+  }
+}
+
 // ─── Quote ───────────────────────────────────────────────────────────────────
 
 export async function getFinnhubQuote(symbol: string): Promise<FmpQuote | null> {
   try {
-    const { data } = await axios.get<FinnhubQuote>(`${BASE_URL}/quote`, {
-      params: { symbol, token: apiKey() },
-    })
+    // Fetch quote + metrics + profile in parallel for complete data
+    const [quoteRes, metricRes, profileRes] = await Promise.allSettled([
+      axios.get<FinnhubQuote>(`${BASE_URL}/quote`, {
+        params: { symbol, token: apiKey() },
+      }),
+      axios.get<FinnhubMetricResponse>(`${BASE_URL}/stock/metric`, {
+        params: { symbol, metric: "all", token: apiKey() },
+      }),
+      axios.get<FinnhubProfile>(`${BASE_URL}/stock/profile2`, {
+        params: { symbol, token: apiKey() },
+      }),
+    ])
 
-    // Finnhub returns { c: 0 } when symbol not found
-    if (!data.c) return null
+    const quote = quoteRes.status === "fulfilled" ? quoteRes.value.data : null
+    if (!quote?.c) return null
+
+    const metric = metricRes.status === "fulfilled" ? metricRes.value.data?.metric : null
+    const profile = profileRes.status === "fulfilled" ? profileRes.value.data : null
 
     return {
       symbol,
-      name: symbol,
-      price: data.c,
-      changePercentage: data.dp,
-      change: data.d,
-      dayLow: data.l,
-      dayHigh: data.h,
-      yearHigh: 0,
-      yearLow: 0,
-      marketCap: 0,
-      exchange: "",
-      open: data.o,
-      previousClose: data.pc,
+      name: profile?.name ?? symbol,
+      price: quote.c,
+      changePercentage: quote.dp,
+      change: quote.d,
+      dayLow: quote.l,
+      dayHigh: quote.h,
+      yearHigh: metric?.["52WeekHigh"] ?? 0,
+      yearLow: metric?.["52WeekLow"] ?? 0,
+      // Finnhub marketCapitalization is in millions USD
+      marketCap: profile?.marketCapitalization ? profile.marketCapitalization * 1_000_000 : 0,
+      exchange: profile?.exchange ?? "",
+      open: quote.o,
+      previousClose: quote.pc,
       volume: 0,
+      pe: metric?.peTTM ?? metric?.peAnnual ?? undefined,
     }
   } catch {
     return null

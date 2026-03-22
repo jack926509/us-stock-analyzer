@@ -19,10 +19,10 @@ interface Props {
 
 const CHART_STYLE = {
   contentStyle: {
-    background: "#0f1629",
-    border: "1px solid rgba(255,255,255,0.1)",
+    background: "#ffffff",
+    border: "1px solid rgba(0,0,0,0.1)",
     borderRadius: "8px",
-    color: "#fff",
+    color: "#1c1917",
     fontSize: "12px",
   },
 }
@@ -109,26 +109,26 @@ function MiniLineChart({
   if (!data.length || !latest) return null
 
   return (
-    <div className="rounded-lg bg-white/[0.03] p-3 ring-1 ring-white/8">
+    <div className="rounded-lg bg-black/[0.04] p-3 ring-1 ring-black/[0.08]">
       <div className="mb-1 flex items-baseline justify-between gap-1">
         <div>
-          <p className="text-[11px] font-medium text-white/60">{label}</p>
-          <p className="text-[10px] text-white/30">{zh}</p>
+          <p className="text-[11px] font-medium text-stone-500">{label}</p>
+          <p className="text-[10px] text-stone-500">{zh}</p>
         </div>
-        <p className="shrink-0 text-sm font-semibold tabular-nums text-white/80" style={{ color }}>
+        <p className="shrink-0 text-sm font-semibold tabular-nums text-stone-700" style={{ color }}>
           {format(latest)}
         </p>
       </div>
       <div className="h-16 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-            <XAxis dataKey="year" tick={{ fill: "#ffffff40", fontSize: 9 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+            <XAxis dataKey="year" tick={{ fill: "#78716c", fontSize: 9 }} />
             <YAxis hide />
             <Tooltip
               {...CHART_STYLE}
               formatter={(v) => [format(Number(v ?? 0)), label]}
-              labelStyle={{ color: "#ffffff60" }}
+              labelStyle={{ color: "#78716c" }}
             />
             <Line
               type="monotone"
@@ -151,10 +151,10 @@ export function KeyMetricsTab({ keyMetrics, ratios, isLoading }: Props) {
       <div className="space-y-6 py-4">
         {[1, 2, 3, 4].map((s) => (
           <div key={s}>
-            <div className="mb-2 h-3 w-32 animate-pulse rounded bg-white/10" />
+            <div className="mb-2 h-3 w-32 animate-pulse rounded bg-black/[0.08]" />
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-28 animate-pulse rounded-lg bg-white/5" />
+                <div key={i} className="h-28 animate-pulse rounded-lg bg-black/5" />
               ))}
             </div>
           </div>
@@ -164,7 +164,7 @@ export function KeyMetricsTab({ keyMetrics, ratios, isLoading }: Props) {
   }
 
   if (!keyMetrics?.length && !ratios?.length) {
-    return <p className="py-8 text-center text-sm text-white/30">無核心指標資料</p>
+    return <p className="py-8 text-center text-sm text-stone-500">無核心指標資料</p>
   }
 
   return (
@@ -178,7 +178,7 @@ export function KeyMetricsTab({ keyMetrics, ratios, isLoading }: Props) {
 
         return (
           <div key={group.title}>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/30">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">
               {group.title}
             </h3>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">

@@ -13,6 +13,8 @@ import { TradingViewWidget } from "@/components/charts/TradingViewWidget.dynamic
 import { TradingViewTechAnalysis } from "@/components/charts/TradingViewTechAnalysis.dynamic"
 import { WallStreetAnalysis } from "@/components/analysis/WallStreetAnalysis"
 import { NewsPanel } from "@/components/analysis/NewsPanel"
+import { PeerComparison } from "./PeerComparison"
+import { ScoreCard } from "./ScoreCard"
 import type {
   FmpProfile,
   FmpIncomeStatement,
@@ -72,7 +74,7 @@ export function StockDetailView({ symbol }: Props) {
   const tvSymbol = getTVSymbol(symbol, profile?.exchange ?? profile?.exchangeFullName)
 
   return (
-    <div className="flex flex-col bg-[#0a0e1a]">
+    <div className="animate-fade-in-up flex flex-col bg-[#f7f3ee]">
       {/* Company Header */}
       <StockHeader
         profile={profile ?? null}
@@ -92,7 +94,7 @@ export function StockDetailView({ symbol }: Props) {
 
           {/* Technical Analysis sidebar — visible on xl screens */}
           <div className="hidden w-[320px] shrink-0 xl:block">
-            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/30">
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-500">
               技術分析
             </div>
             <TradingViewTechAnalysis symbol={tvSymbol} width={320} height={490} />
@@ -101,7 +103,7 @@ export function StockDetailView({ symbol }: Props) {
 
         {/* Tech Analysis on smaller screens — below chart */}
         <div className="mt-4 xl:hidden">
-          <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-white/30">
+          <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-500">
             技術分析
           </div>
           <TradingViewTechAnalysis symbol={tvSymbol} width="100%" height={425} />
@@ -112,23 +114,24 @@ export function StockDetailView({ symbol }: Props) {
       <main className="mx-auto w-full max-w-screen-2xl flex-1 px-6 py-6">
         <Tabs defaultValue="overview" className="gap-0">
           <div className="mb-4 flex items-center justify-between gap-4">
-            <TabsList className="h-auto shrink-0 flex-wrap gap-1 bg-white/5 p-1">
+            <TabsList className="h-auto shrink-0 flex-wrap gap-1 bg-[#e8e3db] p-1 ring-1 ring-black/[0.06]">
               <TabsTrigger value="overview" className="text-xs">總覽</TabsTrigger>
               <TabsTrigger value="income" className="text-xs">損益表</TabsTrigger>
               <TabsTrigger value="balance" className="text-xs">資產負債表</TabsTrigger>
               <TabsTrigger value="cashflow" className="text-xs">現金流量表</TabsTrigger>
               <TabsTrigger value="metrics" className="text-xs">核心指標</TabsTrigger>
+              <TabsTrigger value="peers" className="text-xs">同業比較</TabsTrigger>
               <TabsTrigger value="ai" className="text-xs">AI 分析</TabsTrigger>
             </TabsList>
 
             {/* Period toggle */}
-            <div className="flex items-center gap-1 rounded-lg bg-white/5 p-1">
+            <div className="flex items-center gap-1 rounded-lg bg-black/5 p-1">
               <button
                 onClick={() => setPeriod("annual")}
                 className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
                   period === "annual"
-                    ? "bg-white/15 text-white"
-                    : "text-white/40 hover:text-white/70"
+                    ? "bg-black/[0.1] text-stone-900"
+                    : "text-stone-600 hover:text-stone-600"
                 }`}
               >
                 年度
@@ -137,8 +140,8 @@ export function StockDetailView({ symbol }: Props) {
                 onClick={() => setPeriod("quarterly")}
                 className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
                   period === "quarterly"
-                    ? "bg-white/15 text-white"
-                    : "text-white/40 hover:text-white/70"
+                    ? "bg-black/[0.1] text-stone-900"
+                    : "text-stone-600 hover:text-stone-600"
                 }`}
               >
                 季度
@@ -181,6 +184,31 @@ export function StockDetailView({ symbol }: Props) {
             />
           </TabsContent>
 
+          <TabsContent value="peers">
+            <div className="grid grid-cols-1 gap-6 py-2 xl:grid-cols-[1fr_360px]">
+              {/* Peer Comparison */}
+              <div>
+                <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-stone-500">
+                  同業比較
+                </h3>
+                <PeerComparison symbol={symbol} />
+              </div>
+
+              {/* Score Card */}
+              <div>
+                <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-stone-500">
+                  綜合評分
+                </h3>
+                <ScoreCard
+                  keyMetrics={financials?.keyMetrics ?? []}
+                  ratios={financials?.ratios ?? []}
+                  sector={profile?.sector}
+                  isLoading={financialsLoading}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
           <TabsContent value="ai">
             <div className="grid grid-cols-1 gap-6 py-2 xl:grid-cols-[1fr_360px]">
               {/* AI Analysis */}
@@ -188,7 +216,7 @@ export function StockDetailView({ symbol }: Props) {
 
               {/* News sidebar */}
               <div className="min-w-0">
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/30">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-500">
                   近期新聞
                 </h3>
                 <NewsPanel symbol={symbol} />

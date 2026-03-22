@@ -27,13 +27,13 @@ export default function TradingViewTechAnalysis({ symbol, width = "100%", height
     script.innerHTML = JSON.stringify({
       interval: "1D",
       width,
-      isTransparent: true,
+      isTransparent: false,
       height,
       symbol,
       showIntervalTabs: true,
       displayMode: "single",
       locale: "zh_TW",
-      colorTheme: "dark",
+      colorTheme: "light",
     })
 
     container.appendChild(widgetDiv)

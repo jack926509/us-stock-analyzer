@@ -32,12 +32,12 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
   const isPositive = displayChangePct >= 0
 
   return (
-    <div className="border-b border-white/5 bg-[#0d1221] px-6 py-4">
+    <div className="border-b border-black/[0.07] bg-[#ede8e0] px-6 py-5">
       <div className="mx-auto max-w-screen-2xl">
         {/* Back link */}
         <Link
           href="/"
-          className="mb-3 inline-flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+          className="mb-3 inline-flex items-center gap-1.5 text-xs text-stone-600 hover:text-stone-600 transition-colors"
         >
           <ArrowLeft size={12} />
           返回追蹤清單
@@ -46,7 +46,7 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
         <div className="flex flex-wrap items-start gap-4">
           {/* Logo */}
           {profile?.image && (
-            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/5">
+            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/5">
               <Image
                 src={profile.image}
                 alt={profile.companyName}
@@ -61,28 +61,28 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
           {/* Name + symbol */}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold text-white">
+              <h1 className="text-xl font-bold text-stone-900">
                 {profile?.companyName ?? symbol}
               </h1>
-              <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono font-medium text-white/60">
+              <span className="rounded bg-black/[0.08] px-1.5 py-0.5 text-xs font-mono font-medium text-stone-500">
                 {profile?.symbol ?? symbol}
               </span>
               {profile?.exchange && (
-                <span className="text-xs text-white/30">{profile.exchangeFullName || profile.exchange}</span>
+                <span className="text-xs text-stone-500">{profile.exchangeFullName || profile.exchange}</span>
               )}
               {profile?.website && (
                 <a
                   href={profile.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-white/30 hover:text-white/60 transition-colors"
+                  className="text-stone-500 hover:text-stone-500 transition-colors"
                 >
                   <ExternalLink size={12} />
                 </a>
               )}
             </div>
             {profile && (
-              <p className="mt-0.5 text-xs text-white/40">
+              <p className="mt-0.5 text-xs text-stone-600">
                 {[profile.sector, profile.industry].filter(Boolean).join(" · ")}
               </p>
             )}
@@ -90,13 +90,13 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
 
           {/* Price + change */}
           <div className="text-right">
-            <p className="text-2xl font-bold tabular-nums text-white">
+            <p className="text-2xl font-bold font-num text-stone-900">
               ${fmt(displayPrice)}
             </p>
             <p
               className={cn(
-                "text-sm font-medium tabular-nums",
-                isPositive ? "text-green-400" : "text-red-400"
+                "text-sm font-medium font-num",
+                isPositive ? "text-emerald-600" : "text-red-600"
               )}
             >
               {isPositive ? "+" : ""}
@@ -110,20 +110,20 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
             <div className="flex flex-wrap gap-4 text-right text-xs">
               {profile.marketCap > 0 && (
                 <div>
-                  <p className="text-white/30">市值</p>
-                  <p className="font-medium text-white/70">${fmtMarketCap(profile.marketCap)}</p>
+                  <p className="text-stone-500">市值</p>
+                  <p className="font-medium text-stone-600">${fmtMarketCap(profile.marketCap)}</p>
                 </div>
               )}
               {profile.beta !== 0 && (
                 <div>
-                  <p className="text-white/30">Beta</p>
-                  <p className="font-medium text-white/70">{fmt(profile.beta)}</p>
+                  <p className="text-stone-500">Beta</p>
+                  <p className="font-medium text-stone-600">{fmt(profile.beta)}</p>
                 </div>
               )}
               {profile.country && (
                 <div>
-                  <p className="text-white/30">國家</p>
-                  <p className="font-medium text-white/70">{profile.country}</p>
+                  <p className="text-stone-500">國家</p>
+                  <p className="font-medium text-stone-600">{profile.country}</p>
                 </div>
               )}
             </div>
@@ -132,7 +132,7 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
 
         {/* Description */}
         {profile?.description && (
-          <p className="mt-3 max-w-3xl text-xs leading-relaxed text-white/30 line-clamp-2">
+          <p className="mt-3 max-w-3xl text-xs leading-relaxed text-stone-500 line-clamp-2">
             {profile.description}
           </p>
         )}

@@ -20,13 +20,14 @@ interface MetricsPanelProps {
 export function MetricsPanel({ data }: MetricsPanelProps) {
   const withQuotes = data.filter((d) => d.quote !== null)
 
-  // Top 5 漲幅 / 跌幅
-  const sorted = [...withQuotes].sort(
-    (a, b) => (b.quote!.changePercentage) - (a.quote!.changePercentage)
-  )
-  const top5Gainers = sorted.slice(0, 5)
+  // Top 5 漲幅 / 跌幅 — only include actual gainers/losers
+  const top5Gainers = [...withQuotes]
+    .filter((d) => d.quote!.changePercentage > 0)
+    .sort((a, b) => b.quote!.changePercentage - a.quote!.changePercentage)
+    .slice(0, 5)
   const top5Losers = [...withQuotes]
-    .sort((a, b) => (a.quote!.changePercentage) - (b.quote!.changePercentage))
+    .filter((d) => d.quote!.changePercentage < 0)
+    .sort((a, b) => a.quote!.changePercentage - b.quote!.changePercentage)
     .slice(0, 5)
 
   // 平均 P/E
@@ -46,28 +47,28 @@ export function MetricsPanel({ data }: MetricsPanelProps) {
   return (
     <div className="flex flex-col gap-4">
       {/* 平均 P/E */}
-      <Card className="border-white/5 bg-white/[0.03] p-4">
+      <Card className="border-black/[0.07] bg-white p-4">
         <p className="text-xs text-muted-foreground">追蹤清單平均 P/E</p>
-        <p className="mt-1 font-mono text-2xl font-bold text-white">
+        <p className="mt-1 font-mono text-2xl font-bold text-stone-900">
           {avgPE ? avgPE.toFixed(1) : "—"}
         </p>
-        <p className="mt-0.5 text-xs text-white/30">{peValues.length} 支股票有效數值</p>
+        <p className="mt-0.5 text-xs text-stone-500">{peValues.length} 支股票有效數值</p>
       </Card>
 
       {/* Top 5 漲幅 */}
-      <Card className="border-white/5 bg-white/[0.03] p-4">
+      <Card className="border-black/[0.07] bg-white p-4">
         <div className="mb-3 flex items-center gap-1.5">
-          <TrendingUp size={14} className="text-[#00d47e]" />
-          <p className="text-xs font-medium text-white/70">Top 5 漲幅</p>
+          <TrendingUp size={14} className="text-[#006e3f]" />
+          <p className="text-xs font-medium text-stone-600">Top 5 漲幅</p>
         </div>
         {top5Gainers.length === 0 ? (
-          <p className="text-xs text-white/30">無資料</p>
+          <p className="text-xs text-stone-500">無資料</p>
         ) : (
           <div className="space-y-2">
             {top5Gainers.map((item) => (
               <div key={item.symbol} className="flex items-center justify-between">
-                <span className="font-mono text-sm font-bold text-white">{item.symbol}</span>
-                <span className="font-mono text-sm text-[#00d47e]">
+                <span className="font-mono text-sm font-bold text-stone-900">{item.symbol}</span>
+                <span className="font-mono text-sm text-[#006e3f]">
                   +{item.quote!.changePercentage.toFixed(2)}%
                 </span>
               </div>
@@ -77,18 +78,18 @@ export function MetricsPanel({ data }: MetricsPanelProps) {
       </Card>
 
       {/* Top 5 跌幅 */}
-      <Card className="border-white/5 bg-white/[0.03] p-4">
+      <Card className="border-black/[0.07] bg-white p-4">
         <div className="mb-3 flex items-center gap-1.5">
           <TrendingDown size={14} className="text-[#ff4757]" />
-          <p className="text-xs font-medium text-white/70">Top 5 跌幅</p>
+          <p className="text-xs font-medium text-stone-600">Top 5 跌幅</p>
         </div>
         {top5Losers.length === 0 ? (
-          <p className="text-xs text-white/30">無資料</p>
+          <p className="text-xs text-stone-500">無資料</p>
         ) : (
           <div className="space-y-2">
             {top5Losers.map((item) => (
               <div key={item.symbol} className="flex items-center justify-between">
-                <span className="font-mono text-sm font-bold text-white">{item.symbol}</span>
+                <span className="font-mono text-sm font-bold text-stone-900">{item.symbol}</span>
                 <span className="font-mono text-sm text-[#ff4757]">
                   {item.quote!.changePercentage.toFixed(2)}%
                 </span>
@@ -100,8 +101,8 @@ export function MetricsPanel({ data }: MetricsPanelProps) {
 
       {/* 產業分佈圓餅圖 */}
       {sectorData.length > 0 && (
-        <Card className="border-white/5 bg-white/[0.03] p-4">
-          <p className="mb-3 text-xs font-medium text-white/70">產業分佈</p>
+        <Card className="border-black/[0.07] bg-white p-4">
+          <p className="mb-3 text-xs font-medium text-stone-600">產業分佈</p>
           <ResponsiveContainer width="100%" height={160}>
             <PieChart>
               <Pie
@@ -119,11 +120,11 @@ export function MetricsPanel({ data }: MetricsPanelProps) {
               </Pie>
               <Tooltip
                 contentStyle={{
-                  background: "#111827",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: "#ffffff",
+                  border: "1px solid rgba(0,0,0,0.1)",
                   borderRadius: "8px",
                   fontSize: "12px",
-                  color: "#fff",
+                  color: "#1c1917",
                 }}
                 formatter={(value) => [`${value} 支`, ""]}
               />
@@ -136,7 +137,7 @@ export function MetricsPanel({ data }: MetricsPanelProps) {
                   className="size-2 rounded-full"
                   style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }}
                 />
-                <span className="text-[11px] text-white/50">{s.name}</span>
+                <span className="text-[11px] text-stone-600">{s.name}</span>
               </div>
             ))}
           </div>

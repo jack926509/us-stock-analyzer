@@ -39,7 +39,7 @@ export default function RootLayout({
       lang="zh-TW"
       className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${notoSansTC.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#0a0e1a] text-foreground">
+      <body className="min-h-full flex flex-col bg-[#f7f3ee] text-foreground">
         <Providers>{children}</Providers>
       </body>
     </html>

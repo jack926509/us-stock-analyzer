@@ -13,9 +13,9 @@ interface Props {
 type SentimentFilter = "all" | "positive" | "negative" | "neutral"
 
 const SENTIMENT_CONFIG = {
-  positive: { label: "正面", color: "text-green-400", bg: "bg-green-500/10 text-green-400 ring-green-500/20" },
-  negative: { label: "負面", color: "text-red-400", bg: "bg-red-500/10 text-red-400 ring-red-500/20" },
-  neutral:  { label: "中性", color: "text-white/50", bg: "bg-white/5 text-white/50 ring-white/10" },
+  positive: { label: "正面", color: "text-emerald-600", bg: "bg-green-500/10 text-emerald-700 ring-green-500/20" },
+  negative: { label: "負面", color: "text-red-600", bg: "bg-red-500/10 text-red-700 ring-red-500/20" },
+  neutral:  { label: "中性", color: "text-stone-600", bg: "bg-black/5 text-stone-600 ring-black/[0.1]" },
 }
 
 function timeAgo(iso: string): string {
@@ -31,7 +31,7 @@ function NewsCard({ item }: { item: NewsItem }) {
   const cfg = SENTIMENT_CONFIG[item.sentiment]
 
   return (
-    <div className="border-b border-white/5 py-3 last:border-0">
+    <div className="border-b border-black/[0.07] py-3 last:border-0">
       <div
         className="flex cursor-pointer items-start gap-3"
         onClick={() => setExpanded((v) => !v)}
@@ -44,15 +44,15 @@ function NewsCard({ item }: { item: NewsItem }) {
             <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium ring-1", cfg.bg)}>
               {cfg.label}
             </span>
-            <span className="text-[11px] text-white/30">{item.source}</span>
-            <span className="text-[11px] text-white/20">{timeAgo(item.publishedAt)}</span>
+            <span className="text-[11px] text-stone-500">{item.source}</span>
+            <span className="text-[11px] text-stone-500">{timeAgo(item.publishedAt)}</span>
           </div>
-          <p className="mt-1 text-sm font-medium leading-snug text-white/80">
+          <p className="mt-1 text-sm font-medium leading-snug text-stone-700">
             {item.title}
           </p>
         </div>
 
-        <div className="mt-1 shrink-0 text-white/30">
+        <div className="mt-1 shrink-0 text-stone-500">
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </div>
       </div>
@@ -60,14 +60,14 @@ function NewsCard({ item }: { item: NewsItem }) {
       {expanded && (
         <div className="ml-5 mt-2 space-y-2">
           {item.summary && (
-            <p className="text-xs leading-relaxed text-white/50">{item.summary}</p>
+            <p className="text-xs leading-relaxed text-stone-600">{item.summary}</p>
           )}
           <a
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 text-xs text-[#00d47e] hover:underline"
+            className="inline-flex items-center gap-1 text-xs text-[#006e3f] hover:underline"
           >
             閱讀原文 <ExternalLink size={10} />
           </a>
@@ -100,7 +100,7 @@ export function NewsPanel({ symbol }: Props) {
     return (
       <div className="space-y-3 py-2">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-12 animate-pulse rounded-lg bg-white/5" />
+          <div key={i} className="h-12 animate-pulse rounded-lg bg-black/5" />
         ))}
       </div>
     )
@@ -109,8 +109,8 @@ export function NewsPanel({ symbol }: Props) {
   if (isError || !Array.isArray(news)) {
     return (
       <div className="flex flex-col items-center gap-2 py-10 text-center">
-        <Newspaper size={24} className="text-white/20" />
-        <p className="text-sm text-white/30">無法載入新聞</p>
+        <Newspaper size={24} className="text-stone-500" />
+        <p className="text-sm text-stone-500">無法載入新聞</p>
       </div>
     )
   }
@@ -118,8 +118,8 @@ export function NewsPanel({ symbol }: Props) {
   if (news.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-10 text-center">
-        <Newspaper size={24} className="text-white/20" />
-        <p className="text-sm text-white/30">近 30 天無相關新聞</p>
+        <Newspaper size={24} className="text-stone-500" />
+        <p className="text-sm text-stone-500">近 30 天無相關新聞</p>
       </div>
     )
   }
@@ -138,13 +138,13 @@ export function NewsPanel({ symbol }: Props) {
                 "rounded-full px-3 py-1 text-xs font-medium transition-colors ring-1",
                 filter === f
                   ? f === "all"
-                    ? "bg-white/15 text-white ring-white/20"
+                    ? "bg-black/[0.1] text-stone-900 ring-black/[0.15]"
                     : f === "positive"
-                    ? "bg-green-500/20 text-green-400 ring-green-500/30"
+                    ? "bg-green-500/20 text-emerald-700 ring-green-500/30"
                     : f === "negative"
-                    ? "bg-red-500/20 text-red-400 ring-red-500/30"
-                    : "bg-white/10 text-white/60 ring-white/15"
-                  : "bg-transparent text-white/40 ring-white/10 hover:text-white/70"
+                    ? "bg-red-500/20 text-red-700 ring-red-500/30"
+                    : "bg-black/[0.08] text-stone-500 ring-black/[0.1]"
+                  : "bg-transparent text-stone-600 ring-black/[0.1] hover:text-stone-600"
               )}
             >
               {f === "all" ? "全部" : SENTIMENT_CONFIG[f].label}
@@ -155,9 +155,9 @@ export function NewsPanel({ symbol }: Props) {
       </div>
 
       {/* News list */}
-      <div className="rounded-lg bg-white/[0.02] px-4 ring-1 ring-white/8">
+      <div className="rounded-lg bg-[#faf6f1] px-4 ring-1 ring-black/[0.08]">
         {filtered.length === 0 ? (
-          <p className="py-6 text-center text-sm text-white/30">無此情緒類別的新聞</p>
+          <p className="py-6 text-center text-sm text-stone-500">無此情緒類別的新聞</p>
         ) : (
           filtered.map((item) => <NewsCard key={item.url + item.publishedAt} item={item} />)
         )}

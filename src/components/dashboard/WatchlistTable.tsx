@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from "lucide-react"
+import Image from "next/image"
 import {
   Table,
   TableBody,
@@ -18,15 +19,42 @@ import { Badge } from "@/components/ui/badge"
 import type { FmpQuote } from "@/lib/api/fmp"
 import type { Watchlist } from "@/lib/db/schema"
 
+function StockLogo({ symbol }: { symbol: string }) {
+  const [failed, setFailed] = useState(false)
+  const src = `https://financialmodelingprep.com/image-stock/${symbol}.png`
+
+  if (failed) {
+    return (
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-[10px] font-bold text-stone-500 ring-1 ring-black/[0.07]">
+        {symbol.slice(0, 2)}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white ring-1 ring-black/[0.07]">
+      <Image
+        src={src}
+        alt={symbol}
+        width={28}
+        height={28}
+        className="size-full object-contain"
+        onError={() => setFailed(true)}
+        unoptimized
+      />
+    </div>
+  )
+}
+
 type WatchlistEntry = Watchlist & { quote: FmpQuote | null }
 type SortKey = "symbol" | "price" | "changePercent" | "marketCap" | "peRatio"
 type SortDir = "asc" | "desc"
 
 function SortIcon({ col, active, dir }: { col: string; active: boolean; dir: SortDir }) {
-  if (!active) return <ArrowUpDown size={12} className="text-white/20" />
+  if (!active) return <ArrowUpDown size={12} className="text-stone-500" />
   return dir === "asc"
-    ? <ArrowUp size={12} className="text-[#00d47e]" />
-    : <ArrowDown size={12} className="text-[#00d47e]" />
+    ? <ArrowUp size={12} className="text-[#006e3f]" />
+    : <ArrowDown size={12} className="text-[#006e3f]" />
 }
 
 function formatMarketCap(v: number | null): string {
@@ -105,7 +133,7 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
   function SortableHead({ label, col }: { label: string; col: SortKey }) {
     return (
       <TableHead
-        className="cursor-pointer select-none text-white/50 hover:text-white"
+        className="cursor-pointer select-none text-stone-600 hover:text-stone-900"
         onClick={() => handleSort(col)}
       >
         <div className="flex items-center gap-1">
@@ -120,7 +148,7 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
     return (
       <div className="space-y-2">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-12 animate-pulse rounded-lg bg-white/5" />
+          <div key={i} className="h-12 animate-pulse rounded-lg bg-black/5" />
         ))}
       </div>
     )
@@ -128,54 +156,57 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
 
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 py-16 text-center">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-black/[0.1] py-16 text-center">
         <p className="text-muted-foreground">追蹤清單為空</p>
-        <p className="mt-1 text-sm text-white/30">點擊右上角「新增股票」開始追蹤</p>
+        <p className="mt-1 text-sm text-stone-500">點擊右上角「新增股票」開始追蹤</p>
       </div>
     )
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-white/5">
+    <div className="overflow-x-auto rounded-xl border border-black/[0.07] bg-[#f0ebe2]">
       <Table>
         <TableHeader>
-          <TableRow className="border-white/5 hover:bg-transparent">
+          <TableRow className="border-black/[0.07] hover:bg-transparent">
             <SortableHead label="代碼" col="symbol" />
-            <TableHead className="text-white/50">公司名稱</TableHead>
+            <TableHead className="text-stone-600">公司名稱</TableHead>
             <SortableHead label="現價" col="price" />
             <SortableHead label="漲跌幅" col="changePercent" />
             <SortableHead label="市值" col="marketCap" />
             <SortableHead label="P/E" col="peRatio" />
-            <TableHead className="text-white/50">52週高低</TableHead>
-            <TableHead className="text-white/50" />
+            <TableHead className="text-stone-600">52週高低</TableHead>
+            <TableHead className="text-stone-600" />
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody className="stagger-children">
           {sorted.map((row) => {
             const q = row.quote
             const isUp = (q?.changePercentage ?? 0) >= 0
             return (
               <TableRow
                 key={row.symbol}
-                className="cursor-pointer border-white/5 transition-colors hover:bg-white/[0.03]"
+                className="cursor-pointer border-black/[0.06] transition-colors hover:bg-black/[0.04]"
                 onClick={() => router.push(`/stock/${row.symbol}`)}
               >
                 <TableCell>
-                  <span className="font-mono font-bold text-white">{row.symbol}</span>
+                  <div className="flex items-center gap-2">
+                    <StockLogo symbol={row.symbol} />
+                    <span className="font-num font-bold text-stone-900">{row.symbol}</span>
+                  </div>
                 </TableCell>
-                <TableCell className="max-w-[180px] truncate text-white/70">
+                <TableCell className="max-w-[180px] truncate text-stone-600">
                   {row.name}
                 </TableCell>
-                <TableCell className="font-mono text-white">
+                <TableCell className="font-num text-stone-900">
                   {q ? `$${q.price.toFixed(2)}` : "—"}
                 </TableCell>
                 <TableCell>
                   {q ? (
                     <Badge
                       variant="outline"
-                      className={`border-0 font-mono text-xs ${
+                      className={`border-0 font-num text-xs ${
                         isUp
-                          ? "bg-[#00d47e]/10 text-[#00d47e]"
+                          ? "bg-[#00d47e]/10 text-[#006e3f]"
                           : "bg-[#ff4757]/10 text-[#ff4757]"
                       }`}
                     >
@@ -186,16 +217,16 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
                     "—"
                   )}
                 </TableCell>
-                <TableCell className="font-mono text-white/70">
+                <TableCell className="font-num text-stone-600">
                   {formatMarketCap(q?.marketCap ?? null)}
                 </TableCell>
-                <TableCell className="font-mono text-white/70">
+                <TableCell className="font-num text-stone-600">
                   {q?.pe ? q.pe.toFixed(1) : "—"}
                 </TableCell>
-                <TableCell className="font-mono text-xs text-white/50">
-                  {q ? (
+                <TableCell className="font-num text-xs text-stone-600">
+                  {q && q.yearHigh > 0 ? (
                     <span>
-                      <span className="text-[#00d47e]">${q.yearHigh.toFixed(2)}</span>
+                      <span className="text-[#006e3f]">${q.yearHigh.toFixed(2)}</span>
                       {" / "}
                       <span className="text-[#ff4757]">${q.yearLow.toFixed(2)}</span>
                     </span>
@@ -209,7 +240,7 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
                     size="sm"
                     disabled={deleting === row.symbol}
                     onClick={(e) => handleDelete(e, row.symbol)}
-                    className="h-7 px-2 text-white/30 hover:bg-[#ff4757]/10 hover:text-[#ff4757]"
+                    className="h-7 px-2 text-stone-500 hover:bg-[#ff4757]/10 hover:text-[#ff4757]"
                   >
                     <Trash2 size={13} />
                   </Button>

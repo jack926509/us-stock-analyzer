@@ -99,9 +99,9 @@ export function AddStockDialog() {
         新增股票
       </DialogTrigger>
 
-      <DialogContent className="border-white/10 bg-[#111827] text-white sm:max-w-md">
+      <DialogContent className="border-black/[0.1] bg-white text-stone-900 sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">新增追蹤股票</DialogTitle>
+          <DialogTitle className="text-stone-900">新增追蹤股票</DialogTitle>
         </DialogHeader>
 
         <div className="relative">
@@ -110,7 +110,7 @@ export function AddStockDialog() {
             placeholder="輸入股票代碼或公司名稱..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="border-white/10 bg-white/5 pl-9 text-white placeholder:text-muted-foreground"
+            className="border-black/[0.1] bg-black/5 pl-9 text-stone-900 placeholder:text-muted-foreground"
             autoFocus
           />
         </div>
@@ -136,14 +136,14 @@ export function AddStockDialog() {
                 key={r.symbol}
                 onClick={() => handleAdd(r.symbol)}
                 disabled={adding === r.symbol}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-white/5 disabled:opacity-50"
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-black/5 disabled:opacity-50"
               >
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm font-bold text-[#00d47e]">{r.symbol}</span>
-                  <span className="truncate text-sm text-white/80">{r.name}</span>
+                  <span className="font-mono text-sm font-bold text-[#006e3f]">{r.symbol}</span>
+                  <span className="truncate text-sm text-stone-700">{r.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="border-white/20 text-xs text-white/50">
+                  <Badge variant="outline" className="border-black/[0.12] text-xs text-stone-600">
                     {r.exchange}
                   </Badge>
                   {adding === r.symbol ? (

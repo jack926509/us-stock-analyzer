@@ -31,10 +31,10 @@ function fmtNum(v: number) {
 
 const CHART_STYLE = {
   contentStyle: {
-    background: "#0f1629",
-    border: "1px solid rgba(255,255,255,0.1)",
+    background: "#ffffff",
+    border: "1px solid rgba(0,0,0,0.1)",
     borderRadius: "8px",
-    color: "#fff",
+    color: "#1c1917",
     fontSize: "12px",
   },
 }
@@ -55,9 +55,9 @@ const ROWS = [
 const PIE_COLORS = ["#34d399", "#f87171", "#60a5fa"]
 
 export function BalanceSheetTab({ data, isLoading }: Props) {
-  if (isLoading) return <div className="h-64 animate-pulse rounded-lg bg-white/5" />
+  if (isLoading) return <div className="h-64 animate-pulse rounded-lg bg-black/5" />
   if (!data || data.length === 0) {
-    return <p className="py-8 text-center text-sm text-white/30">無資產負債表資料</p>
+    return <p className="py-8 text-center text-sm text-stone-500">無資產負債表資料</p>
   }
 
   const sorted = [...data].reverse()
@@ -89,17 +89,17 @@ export function BalanceSheetTab({ data, isLoading }: Props) {
     <div className="space-y-6 py-4">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {/* Assets vs Liabilities vs Equity */}
-        <div className="rounded-lg bg-white/[0.03] p-4 ring-1 ring-white/8">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/50">
+        <div className="rounded-lg bg-black/[0.04] p-4 ring-1 ring-black/[0.08]">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-600">
             Assets / Liabilities / Equity
           </p>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={stackedData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="year" tick={{ fill: "#ffffff60", fontSize: 11 }} />
-              <YAxis tickFormatter={fmtNum} tick={{ fill: "#ffffff60", fontSize: 11 }} width={50} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+              <XAxis dataKey="year" tick={{ fill: "#78716c", fontSize: 11 }} />
+              <YAxis tickFormatter={fmtNum} tick={{ fill: "#78716c", fontSize: 11 }} width={50} />
               <Tooltip {...CHART_STYLE} formatter={(v) => [fmtNum(Number(v ?? 0)), ""]} />
-              <Legend wrapperStyle={{ fontSize: 11, color: "#ffffff60" }} />
+              <Legend wrapperStyle={{ fontSize: 11, color: "#78716c" }} />
               <Bar dataKey="Assets" fill="#60a5fa" radius={[3, 3, 0, 0]} />
               <Bar dataKey="Liabilities" fill="#f87171" radius={[3, 3, 0, 0]} />
               <Bar dataKey="Equity" fill="#34d399" radius={[3, 3, 0, 0]} />
@@ -108,17 +108,17 @@ export function BalanceSheetTab({ data, isLoading }: Props) {
         </div>
 
         {/* Debt vs Cash */}
-        <div className="rounded-lg bg-white/[0.03] p-4 ring-1 ring-white/8">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/50">
+        <div className="rounded-lg bg-black/[0.04] p-4 ring-1 ring-black/[0.08]">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-600">
             Debt vs Cash
           </p>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={debtData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis dataKey="year" tick={{ fill: "#ffffff60", fontSize: 11 }} />
-              <YAxis tickFormatter={fmtNum} tick={{ fill: "#ffffff60", fontSize: 11 }} width={50} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+              <XAxis dataKey="year" tick={{ fill: "#78716c", fontSize: 11 }} />
+              <YAxis tickFormatter={fmtNum} tick={{ fill: "#78716c", fontSize: 11 }} width={50} />
               <Tooltip {...CHART_STYLE} formatter={(v) => [fmtNum(Number(v ?? 0)), ""]} />
-              <Legend wrapperStyle={{ fontSize: 11, color: "#ffffff60" }} />
+              <Legend wrapperStyle={{ fontSize: 11, color: "#78716c" }} />
               <Bar dataKey="Total Debt" fill="#f87171" radius={[3, 3, 0, 0]} />
               <Bar dataKey="Long-term Debt" fill="#fb923c" radius={[3, 3, 0, 0]} />
               <Bar dataKey="Cash" fill="#34d399" radius={[3, 3, 0, 0]} />
@@ -127,8 +127,8 @@ export function BalanceSheetTab({ data, isLoading }: Props) {
         </div>
 
         {/* Latest composition pie */}
-        <div className="rounded-lg bg-white/[0.03] p-4 ring-1 ring-white/8">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/50">
+        <div className="rounded-lg bg-black/[0.04] p-4 ring-1 ring-black/[0.08]">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-600">
             Latest Balance Sheet Composition
           </p>
           <div className="flex items-center justify-center">
@@ -152,8 +152,8 @@ export function BalanceSheetTab({ data, isLoading }: Props) {
                   formatter={(v) => [fmtNum(Number(v ?? 0)), ""]}
                 />
                 <Legend
-                  wrapperStyle={{ fontSize: 11, color: "#ffffff60" }}
-                  formatter={(value) => <span style={{ color: "#ffffff80" }}>{value}</span>}
+                  wrapperStyle={{ fontSize: 11, color: "#78716c" }}
+                  formatter={(value) => <span style={{ color: "#44403c" }}>{value}</span>}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -162,13 +162,13 @@ export function BalanceSheetTab({ data, isLoading }: Props) {
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg ring-1 ring-white/8">
+      <div className="overflow-x-auto rounded-lg ring-1 ring-black/[0.08]">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-white/8 bg-white/[0.03]">
-              <th className="px-4 py-2.5 text-left font-semibold text-white/50">科目</th>
+            <tr className="border-b border-black/[0.07] bg-black/[0.04]">
+              <th className="px-4 py-2.5 text-left font-semibold text-stone-600">科目</th>
               {data.map((d) => (
-                <th key={d.date} className="px-4 py-2.5 text-right font-semibold text-white/50">
+                <th key={d.date} className="px-4 py-2.5 text-right font-semibold text-stone-600">
                   {d.date.substring(0, 4)}
                 </th>
               ))}
@@ -176,17 +176,17 @@ export function BalanceSheetTab({ data, isLoading }: Props) {
           </thead>
           <tbody>
             {ROWS.map(({ key, label, zh }) => (
-              <tr key={key} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-                <td className="px-4 py-2 text-white/60">
+              <tr key={key} className="border-b border-black/[0.07] hover:bg-black/[0.03] transition-colors">
+                <td className="px-4 py-2 text-stone-500">
                   {label}
-                  <span className="ml-1 text-white/30">({zh})</span>
+                  <span className="ml-1 text-stone-500">({zh})</span>
                 </td>
                 {data.map((d) => {
                   const v = d[key as keyof FmpBalanceSheet] as number
                   return (
                     <td
                       key={d.date}
-                      className={`px-4 py-2 text-right tabular-nums ${v < 0 ? "text-red-400" : "text-white/80"}`}
+                      className={`px-4 py-2 text-right tabular-nums ${v < 0 ? "text-red-600" : "text-stone-700"}`}
                     >
                       {fmtNum(v)}
                     </td>

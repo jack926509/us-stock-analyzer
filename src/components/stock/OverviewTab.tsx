@@ -56,8 +56,8 @@ function spark(arr: (number | undefined)[]): number[] {
 function MetricSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/30">{title}</h3>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{children}</div>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">{title}</h3>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 stagger-children">{children}</div>
     </div>
   )
 }
@@ -68,10 +68,10 @@ export function OverviewTab({ financials, isLoading }: OverviewTabProps) {
       <div className="space-y-6 py-4">
         {[1, 2, 3, 4].map((s) => (
           <div key={s}>
-            <div className="mb-2 h-3 w-24 animate-pulse rounded bg-white/10" />
+            <div className="mb-2 h-3 w-24 animate-pulse rounded bg-black/[0.08]" />
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-20 animate-pulse rounded-lg bg-white/5" />
+                <div key={i} className="h-20 animate-pulse rounded-lg bg-black/5" />
               ))}
             </div>
           </div>
@@ -81,7 +81,7 @@ export function OverviewTab({ financials, isLoading }: OverviewTabProps) {
   }
 
   if (!financials) {
-    return <p className="py-8 text-center text-sm text-white/30">無法載入財務數據</p>
+    return <p className="py-8 text-center text-sm text-stone-500">無法載入財務數據</p>
   }
 
   const { income, keyMetrics, ratios } = financials
@@ -252,7 +252,7 @@ export function OverviewTab({ financials, isLoading }: OverviewTabProps) {
           labelEn="Debt / Equity"
           value={fmtX(r?.debtEquityRatio)}
           trend={r?.debtEquityRatio != null ? (r.debtEquityRatio < 1 ? "up" : r.debtEquityRatio > 2 ? "down" : "neutral") : "neutral"}
-          colorOverride={r?.debtEquityRatio != null ? (r.debtEquityRatio < 1 ? "text-green-400" : r.debtEquityRatio > 2 ? "text-red-400" : "text-white/70") : undefined}
+          colorOverride={r?.debtEquityRatio != null ? (r.debtEquityRatio < 1 ? "text-emerald-600" : r.debtEquityRatio > 2 ? "text-red-600" : "text-stone-600") : undefined}
           sparklineData={deSpark}
         />
         <MetricCard

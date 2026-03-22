@@ -3,7 +3,7 @@ import { stockPrices, watchlist } from "@/lib/db/schema"
 import { getCompanyProfile, getQuote } from "@/lib/api/fmp"
 import { getFinnhubQuote, getFinnhubProfile } from "@/lib/api/finnhub"
 import { validateSymbol } from "@/lib/validations"
-import { eq } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 import type { FmpQuote } from "@/lib/api/fmp"
 
 // FMP 優先，失敗時 fallback 到 Finnhub
@@ -23,10 +23,29 @@ export async function GET() {
     }
 
     const symbols = items.map((item) => item.symbol)
+
+    // Load SQLite price cache for fallback
+    const cachedPrices = await db
+      .select()
+      .from(stockPrices)
+      .where(inArray(stockPrices.symbol, symbols))
+    const cacheMap = new Map(cachedPrices.map((r) => [r.symbol, r]))
+
     const quoteResults = await Promise.allSettled(symbols.map(getQuoteWithFallback))
     const quotes = quoteResults
       .map((r) => (r.status === "fulfilled" ? r.value : null))
       .filter((q): q is FmpQuote => q !== null)
+      .map((q) => {
+        // Supplement 0/missing values from SQLite cache
+        const cached = cacheMap.get(q.symbol)
+        if (cached) {
+          if (!q.marketCap && cached.marketCap) q.marketCap = cached.marketCap
+          if (!q.yearHigh && cached.week52High) q.yearHigh = cached.week52High
+          if (!q.yearLow && cached.week52Low) q.yearLow = cached.week52Low
+          if (!q.pe && cached.peRatio) q.pe = cached.peRatio
+        }
+        return q
+      })
     const quoteMap = new Map(quotes.map((q) => [q.symbol, q]))
 
     // 更新 stock_prices 快取

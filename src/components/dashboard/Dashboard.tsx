@@ -26,7 +26,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#0a0e1a]">
+    <div className="flex min-h-screen flex-col bg-[#f7f3ee]">
       <Navbar onRefresh={handleRefresh} isRefreshing={isFetching} />
 
       <main className="mx-auto w-full max-w-screen-2xl flex-1 px-6 py-6">
@@ -38,10 +38,10 @@ export function Dashboard() {
           {/* 追蹤清單（主區域） */}
           <div className="flex-1 min-w-0">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-medium text-white/70">
+              <h2 className="text-sm font-medium text-stone-600">
                 追蹤清單
                 {data.length > 0 && (
-                  <span className="ml-2 text-white/30">({data.length})</span>
+                  <span className="ml-2 text-stone-500">({data.length})</span>
                 )}
               </h2>
             </div>
