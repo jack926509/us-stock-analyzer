@@ -1,13 +1,12 @@
 import { db } from "@/lib/db"
 import { financialCache } from "@/lib/db/schema"
 import {
-  getAVIncomeStatements,
-  getAVBalanceSheets,
-  getAVCashFlowStatements,
-  getAVOverview,
-  calcHistoricalRatios,
-  calcHistoricalKeyMetrics,
-} from "@/lib/api/alphavantage"
+  getIncomeStatements,
+  getBalanceSheets,
+  getCashFlowStatements,
+  getKeyMetrics,
+  getFinancialRatios,
+} from "@/lib/api/fmp"
 import { validateSymbol } from "@/lib/validations"
 import { and, eq } from "drizzle-orm"
 
@@ -45,7 +44,6 @@ async function getCachedOrFetch<T>(
 
   const fresh = await fetcher()
 
-  // Only cache if we got data (arrays) or non-null objects
   const hasData = Array.isArray(fresh) ? (fresh as unknown[]).length > 0 : fresh != null
   if (hasData) {
     await db
@@ -90,24 +88,22 @@ export async function GET(
     const url = new URL(req.url)
     const period = url.searchParams.get("period") === "quarterly" ? "quarterly" : "annual"
 
-    // Fetch all data in parallel; statements depend on period, overview is always TTM
-    const [income, balance, cashflow, overviewResult] = await Promise.all([
-      getCachedOrFetch(symbol, "income", period, () => getAVIncomeStatements(symbol, period, 5)),
-      getCachedOrFetch(symbol, "balance", period, () => getAVBalanceSheets(symbol, period, 5)),
-      getCachedOrFetch(symbol, "cashflow", period, () => getAVCashFlowStatements(symbol, period, 5)),
-      getCachedOrFetch(symbol, "overview", "annual", () => getAVOverview(symbol)),
+    // keyMetrics and ratios are always annual (used for scoring & overview)
+    const [income, balance, cashflow, keyMetrics, ratios] = await Promise.all([
+      getCachedOrFetch(symbol, "income", period, () => getIncomeStatements(symbol, period, 5)),
+      getCachedOrFetch(symbol, "balance", period, () => getBalanceSheets(symbol, period, 5)),
+      getCachedOrFetch(symbol, "cashflow", period, () => getCashFlowStatements(symbol, period, 5)),
+      getCachedOrFetch(symbol, "keyMetrics", "annual", () => getKeyMetrics(symbol, "annual", 5)),
+      getCachedOrFetch(symbol, "ratios", "annual", () => getFinancialRatios(symbol, "annual", 5)),
     ])
 
-    const inc = income ?? []
-    const bal = balance ?? []
-    const cf = cashflow ?? []
-    const { keyMetrics: baseKm, ratios: baseRatios } = overviewResult ?? { keyMetrics: [], ratios: [] }
-
-    // Calculate historical ratios from statements
-    const ratios = calcHistoricalRatios(inc, bal, baseRatios)
-    const keyMetrics = calcHistoricalKeyMetrics(inc, bal, baseKm)
-
-    return Response.json({ income: inc, balance: bal, cashflow: cf, keyMetrics, ratios })
+    return Response.json({
+      income: income ?? [],
+      balance: balance ?? [],
+      cashflow: cashflow ?? [],
+      keyMetrics: keyMetrics ?? [],
+      ratios: ratios ?? [],
+    })
   } catch (err) {
     console.error("[GET /api/financials]", err)
     return Response.json({ error: "Failed to fetch financial data", code: "API_ERROR" }, { status: 500 })
