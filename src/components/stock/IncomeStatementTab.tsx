@@ -28,9 +28,6 @@ function fmtNum(v: number) {
   return v.toFixed(2)
 }
 
-function fmtPct(v: number) {
-  return (v * 100).toFixed(1) + "%"
-}
 
 const CHART_STYLE = {
   contentStyle: {

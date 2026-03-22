@@ -56,7 +56,7 @@ type WatchlistEntry = Watchlist & { quote: FmpQuote | null }
 type SortKey = "symbol" | "price" | "changePercent" | "marketCap" | "peRatio"
 type SortDir = "asc" | "desc"
 
-function SortIcon({ col, active, dir }: { col: string; active: boolean; dir: SortDir }) {
+function SortIcon({ active, dir }: { col: string; active: boolean; dir: SortDir }) {
   if (!active) return <ArrowUpDown size={12} className="text-stone-500" />
   return dir === "asc"
     ? <ArrowUp size={12} className="text-[#006e3f]" />

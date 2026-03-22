@@ -327,10 +327,10 @@ export async function POST(
   // Profile fallback to Finnhub if FMP returns nothing
   let companyName = fmpProfile?.companyName ?? symbol
   let price = fmpProfile?.price ?? fmpQuote?.price ?? 0
-  let marketCap = fmpProfile?.marketCap && fmpProfile.marketCap > 0
+  const marketCap = fmpProfile?.marketCap && fmpProfile.marketCap > 0
     ? `$${(fmpProfile.marketCap / 1e9).toFixed(1)}B`
     : "N/A"
-  let pe: number | null = fmpQuote?.pe ?? null
+  const pe: number | null = fmpQuote?.pe ?? null
   let yearHigh = fmpQuote?.yearHigh ?? 0
   let yearLow = fmpQuote?.yearLow ?? 0
 
