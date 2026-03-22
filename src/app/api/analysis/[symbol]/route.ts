@@ -49,7 +49,7 @@ function fmtB(n: number) {
 
 async function buildFinancialSummary(symbol: string): Promise<string> {
   let [income, cashflow, balance] = await Promise.all([
-    getIncomeStatements(symbol, "annual", 3),
+    getIncomeStatements(symbol, "annual", 4), // 4 years for 3 years of YoY
     getCashFlowStatements(symbol, "annual", 3),
     getBalanceSheets(symbol, "annual", 3),
   ])
@@ -66,15 +66,43 @@ async function buildFinancialSummary(symbol: string): Promise<string> {
     const inc = income[i]
     const cf = cashflow[i]
     const bal = balance[i]
+    const prev = income[i + 1] // previous year for YoY
     const year = inc.date.substring(0, 4)
+
+    const revYoY = prev && prev.revenue > 0
+      ? ` (${((inc.revenue - prev.revenue) / prev.revenue * 100).toFixed(1)}% YoY)`
+      : ""
+    const niYoY = prev && Math.abs(prev.netIncome) > 0
+      ? ` (${((inc.netIncome - prev.netIncome) / Math.abs(prev.netIncome) * 100).toFixed(1)}% YoY)`
+      : ""
+    const gmDelta = prev
+      ? ` (${((inc.grossProfitRatio - prev.grossProfitRatio) * 100).toFixed(1)}pp YoY)`
+      : ""
+
     lines.push(
-      `${year}: 營收 ${fmtB(inc.revenue)}, 毛利率 ${(inc.grossProfitRatio * 100).toFixed(1)}%, ` +
-      `淨利率 ${(inc.netIncomeRatio * 100).toFixed(1)}%, 淨利 ${fmtB(inc.netIncome)}` +
+      `${year}: 營收 ${fmtB(inc.revenue)}${revYoY}, 毛利率 ${(inc.grossProfitRatio * 100).toFixed(1)}%${gmDelta}, ` +
+      `淨利率 ${(inc.netIncomeRatio * 100).toFixed(1)}%, 淨利 ${fmtB(inc.netIncome)}${niYoY}` +
       (cf ? `, FCF ${fmtB(cf.freeCashFlow)}` : "") +
       (bal ? `, 總負債 ${fmtB(bal.totalDebt)}, 現金 ${fmtB(bal.cashAndCashEquivalents)}` : "")
     )
   }
-  return lines.join("\n").slice(0, 1500)
+
+  // Capital allocation from most recent cashflow
+  if (cashflow.length) {
+    const cf0 = cashflow[0]
+    const year0 = cf0.date.substring(0, 4)
+    const capParts: string[] = []
+    if (cf0.commonStockRepurchased && cf0.commonStockRepurchased < 0)
+      capParts.push(`股票回購 ${fmtB(Math.abs(cf0.commonStockRepurchased))}`)
+    if (cf0.dividendsPaid && cf0.dividendsPaid < 0)
+      capParts.push(`股息 ${fmtB(Math.abs(cf0.dividendsPaid))}`)
+    if (cf0.capitalExpenditure)
+      capParts.push(`資本支出 ${fmtB(Math.abs(cf0.capitalExpenditure))}`)
+    if (capParts.length)
+      lines.push(`${year0} 資本配置: ${capParts.join(", ")}`)
+  }
+
+  return lines.join("\n").slice(0, 2500)
 }
 
 const POS_KEYWORDS = /beat|record|growth|surge|gain|rise|profit|strong|upgrade|buy|exceed|outperform|launch|new|innovation|partnership|expansion/i
@@ -220,6 +248,143 @@ async function buildPeerSummary(symbol: string): Promise<string> {
   }
 }
 
+// ─── P2: Earnings Surprises (beat/miss history) ───────────────────────────────
+
+async function buildEarningsSurprisesSummary(symbol: string): Promise<string> {
+  try {
+    const key = process.env.FMP_API_KEY
+    if (!key) return ""
+    const { data } = await axios.get<Array<{
+      date: string
+      actualEarningResult: number
+      estimatedEarning: number
+    }>>(`https://financialmodelingprep.com/api/v3/earnings-surprises/${symbol}`, {
+      params: { apikey: key },
+      timeout: 6000,
+    })
+    if (!Array.isArray(data) || !data.length) return "（無 EPS 驚喜記錄）"
+    return data.slice(0, 4).map((e) => {
+      const surprise = e.actualEarningResult - e.estimatedEarning
+      const pct = e.estimatedEarning !== 0
+        ? ((surprise / Math.abs(e.estimatedEarning)) * 100).toFixed(1)
+        : "N/A"
+      const beat = surprise >= 0 ? "✓ Beat" : "✗ Miss"
+      return `${e.date}: EPS 實際 $${e.actualEarningResult?.toFixed(2)} vs 預期 $${e.estimatedEarning?.toFixed(2)} → ${beat} (${pct}%)`
+    }).join("\n")
+  } catch {
+    return ""
+  }
+}
+
+// ─── P2: Analyst Consensus (ratings + forward estimates) ─────────────────────
+
+async function buildAnalystConsensusSummary(symbol: string): Promise<string> {
+  try {
+    const key = process.env.FMP_API_KEY
+    if (!key) return "（無法取得分析師共識）"
+
+    const [estRes, gradesRes] = await Promise.allSettled([
+      axios.get<Array<Record<string, unknown>>>(
+        `https://financialmodelingprep.com/stable/analyst-estimates`,
+        { params: { symbol, limit: 1, apikey: key }, timeout: 6000 }
+      ),
+      axios.get<Array<Record<string, unknown>>>(
+        `https://financialmodelingprep.com/stable/grades-consensus`,
+        { params: { symbol, apikey: key }, timeout: 6000 }
+      ),
+    ])
+
+    const parts: string[] = []
+
+    if (gradesRes.status === "fulfilled" && Array.isArray(gradesRes.value.data) && gradesRes.value.data.length) {
+      const g = gradesRes.value.data[0]
+      const total = [g.strongBuy, g.buy, g.hold, g.sell, g.strongSell].reduce(
+        (s: number, v) => s + Number(v ?? 0), 0
+      )
+      if (total > 0) {
+        parts.push(
+          `評級分布（${total} 位分析師）: 強買 ${g.strongBuy ?? 0} / 買入 ${g.buy ?? 0} / 持有 ${g.hold ?? 0} / 賣出 ${g.sell ?? 0} / 強賣 ${g.strongSell ?? 0}`
+        )
+        if (g.consensus) parts.push(`共識評級: ${g.consensus}`)
+      }
+    }
+
+    if (estRes.status === "fulfilled" && Array.isArray(estRes.value.data) && estRes.value.data.length) {
+      const e = estRes.value.data[0]
+      const n = (v: unknown) => { const x = Number(v); return isFinite(x) && x !== 0 ? x : null }
+      const revAvg = n(e.estimatedRevenueAvg)
+      const epsAvg = n(e.estimatedEpsAvg)
+      const epsLow = n(e.estimatedEpsLow)
+      const epsHigh = n(e.estimatedEpsHigh)
+      if (revAvg) parts.push(`下期預期營收: ${fmtB(revAvg)}`)
+      if (epsAvg) parts.push(`下期預期EPS: $${epsAvg.toFixed(2)} (區間 $${epsLow?.toFixed(2) ?? "N/A"} – $${epsHigh?.toFixed(2) ?? "N/A"})`)
+    }
+
+    return parts.length ? parts.join("\n") : "（無分析師共識數據）"
+  } catch {
+    return "（無法取得分析師共識）"
+  }
+}
+
+// ─── P2: Insider Trading (6-month buy/sell signal) ───────────────────────────
+
+async function buildInsiderTradingSummary(symbol: string): Promise<string> {
+  try {
+    const key = process.env.FMP_API_KEY
+    if (!key) return "（無法取得內部人交易）"
+    const { data } = await axios.get<Array<{
+      transactionDate: string
+      securitiesTransacted: number
+      price: number
+      acquistionOrDisposition: string
+    }>>(`https://financialmodelingprep.com/stable/insider-trading`, {
+      params: { symbol, limit: 30, apikey: key },
+      timeout: 6000,
+    })
+    if (!Array.isArray(data) || !data.length) return "（近期無內部人交易記錄）"
+
+    const cutoff = new Date()
+    cutoff.setMonth(cutoff.getMonth() - 6)
+    const recent = data.filter((t) => new Date(t.transactionDate) >= cutoff)
+    if (!recent.length) return "（近6個月無內部人交易）"
+
+    let buyCount = 0, sellCount = 0, buyValue = 0, sellValue = 0
+    for (const t of recent) {
+      const value = (t.securitiesTransacted ?? 0) * (t.price ?? 0)
+      if (t.acquistionOrDisposition === "A") { buyCount++; buyValue += value }
+      else { sellCount++; sellValue += value }
+    }
+
+    const parts: string[] = []
+    if (buyCount) parts.push(`買入 ${buyCount} 筆 (${fmtB(buyValue)})`)
+    if (sellCount) parts.push(`賣出 ${sellCount} 筆 (${fmtB(sellValue)})`)
+    const signal = buyValue > sellValue * 2 ? "積極買入 🟢"
+      : sellValue > buyValue * 2 ? "積極賣出 🔴"
+      : buyValue > sellValue ? "偏多 🟡"
+      : sellValue > buyValue ? "偏空 🟠"
+      : "中性"
+
+    return `近6個月內部人交易: ${parts.join(", ")} → 信號: ${signal}`
+  } catch {
+    return "（無法取得內部人交易）"
+  }
+}
+
+// ─── P3: Macro Context (quarterly hardcoded anchor) ──────────────────────────
+
+function buildMacroContext(): string {
+  const now = new Date()
+  const quarter = `Q${Math.ceil((now.getMonth() + 1) / 3)} ${now.getFullYear()}`
+  return [
+    `宏觀環境（${quarter}）:`,
+    `聯準會基準利率 4.25–4.50%，市場預期 2026 年降息 1–2 次`,
+    `10年期美債殖利率約 4.3%（科技/成長股折現率壓力仍存）`,
+    `美元指數相對強勢（不利跨國企業海外收入換算）`,
+    `標普500 Forward P/E 約 21x（歷史均值 ~16x，整體估值偏高）`,
+    `主要系統性風險: 關稅政策不確定性、AI 資本支出回報期疑慮`,
+  ].join(" | ")
+}
+
 function parseRating(content: string): string | null {
   const patterns = ["Strong Buy", "Strong Sell", "Buy", "Sell", "Hold"]
   for (const p of patterns) {
@@ -314,14 +479,21 @@ export async function POST(
 
   // Rate limiting is handled by middleware.ts (3 POST requests / 60s per IP)
 
-  // Collect all context data in parallel (all from FMP — no Alpha Vantage)
-  const [fmpProfile, fmpQuote, financialSummary, keyMetricsSummary, newsSummary, peerSummary] = await Promise.all([
+  // Collect all context data in parallel
+  const [
+    fmpProfile, fmpQuote,
+    financialSummary, keyMetricsSummary, newsSummary, peerSummary,
+    earningsSurprises, analystConsensus, insiderTrading,
+  ] = await Promise.all([
     getCompanyProfile(symbol).catch(() => null),
     getQuote(symbol).catch(() => null),
     buildFinancialSummary(symbol),
     buildKeyMetricsSummary(symbol),
     buildNewsSummary(symbol),
     buildPeerSummary(symbol),
+    buildEarningsSurprisesSummary(symbol),
+    buildAnalystConsensusSummary(symbol),
+    buildInsiderTradingSummary(symbol),
   ])
 
   // Profile fallback to Finnhub if FMP returns nothing
@@ -351,6 +523,13 @@ export async function POST(
     ? `$${yearLow.toFixed(2)} – $${yearHigh.toFixed(2)}`
     : "N/A"
 
+  // P1: 52-week relative position
+  const week52Position = price > 0 && yearHigh > yearLow
+    ? `${((price - yearLow) / (yearHigh - yearLow) * 100).toFixed(0)}% 位置（距52週低 +${((price - yearLow) / yearLow * 100).toFixed(1)}%，距52週高 -${((yearHigh - price) / yearHigh * 100).toFixed(1)}%）`
+    : "N/A"
+
+  const macroContext = buildMacroContext()
+
   const userPrompt = buildUserPrompt({
     symbol,
     companyName,
@@ -358,10 +537,15 @@ export async function POST(
     keyMetricsSummary,
     newsSummary,
     peerSummary,
+    earningsSurprises,
+    analystConsensus,
+    insiderTrading,
     price,
     marketCap,
     pe,
     range52w,
+    week52Position,
+    macroContext,
   })
 
   let fullContent = ""
