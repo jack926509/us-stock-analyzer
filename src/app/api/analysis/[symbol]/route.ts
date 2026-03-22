@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk"
+import axios from "axios"
 import { db } from "@/lib/db"
 import { analysisReports } from "@/lib/db/schema"
 import { validateSymbol } from "@/lib/validations"
@@ -62,20 +63,42 @@ async function buildFinancialSummary(symbol: string): Promise<string> {
   return lines.join("\n").slice(0, 1500)
 }
 
+const POS_KEYWORDS = /beat|record|growth|surge|gain|rise|profit|strong|upgrade|buy|exceed|outperform|launch|new|innovation|partnership|expansion/i
+const NEG_KEYWORDS = /miss|fall|decline|loss|cut|downgrade|sell|weak|risk|concern|lawsuit|investigation|recall|layoff|debt|warning|disappoints/i
+
+function classifyNewsSentiment(text: string): string {
+  const pos = (text.match(POS_KEYWORDS) || []).length
+  const neg = (text.match(NEG_KEYWORDS) || []).length
+  if (pos > neg) return "positive"
+  if (neg > pos) return "negative"
+  return "neutral"
+}
+
 async function buildNewsSummary(symbol: string): Promise<string> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
-    const res = await fetch(`${baseUrl}/api/news/${symbol}`)
-    if (!res.ok) return "（無法取得新聞）"
-    const news = await res.json() as Array<{ title: string; summary: string; publishedAt: string; sentiment: string }>
-    if (!Array.isArray(news) || !news.length) return "（近期無重大新聞）"
+    const key = process.env.FINNHUB_API_KEY
+    if (!key) return "（無法取得新聞）"
 
-    return news
+    const toDate = new Date()
+    const fromDate = new Date()
+    fromDate.setDate(fromDate.getDate() - 30)
+    const fmt = (d: Date) => d.toISOString().split("T")[0]
+
+    const { data } = await axios.get<Array<{ headline: string; summary?: string; datetime: number; url: string }>>(
+      "https://finnhub.io/api/v1/company-news",
+      { params: { symbol, from: fmt(fromDate), to: fmt(toDate), token: key } }
+    )
+
+    if (!Array.isArray(data) || !data.length) return "（近期無重大新聞）"
+
+    return data
+      .filter((n) => n.headline && n.url)
       .slice(0, 10)
       .map((n, i) => {
-        const date = n.publishedAt.substring(0, 10)
-        const sum = n.summary.slice(0, 200)
-        return `${i + 1}. [${date}][${n.sentiment}] ${n.title}\n   ${sum}`
+        const date = new Date(n.datetime * 1000).toISOString().substring(0, 10)
+        const summary = (n.summary ?? n.headline).slice(0, 200)
+        const sentiment = classifyNewsSentiment(`${n.headline} ${n.summary ?? ""}`)
+        return `${i + 1}. [${date}][${sentiment}] ${n.headline}\n   ${summary}`
       })
       .join("\n")
       .slice(0, 2000)
