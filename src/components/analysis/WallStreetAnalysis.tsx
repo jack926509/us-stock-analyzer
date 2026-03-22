@@ -119,6 +119,7 @@ export function WallStreetAnalysis({ symbol, price }: Props) {
   const [activeReportId, setActiveReportId] = useState<number | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
 
   // Fetch historical reports
@@ -166,6 +167,10 @@ export function WallStreetAnalysis({ symbol, price }: Props) {
         if (done) break
         content += decoder.decode(value, { stream: true })
         setStreamContent(content)
+        // Auto-scroll to bottom while streaming
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        }
       }
 
       // Refresh historical reports list after generation
@@ -305,7 +310,10 @@ export function WallStreetAnalysis({ symbol, price }: Props) {
 
       {/* Analysis content */}
       {displayContent && (
-        <div className="rounded-lg bg-[#faf6f1] p-5 ring-1 ring-black/[0.08]">
+        <div
+          ref={scrollRef}
+          className="max-h-[70vh] overflow-y-auto rounded-lg bg-[#faf6f1] p-5 ring-1 ring-black/[0.08]"
+        >
           <div className="prose prose-sm prose-stone max-w-none">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
