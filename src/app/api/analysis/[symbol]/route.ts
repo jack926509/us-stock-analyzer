@@ -8,24 +8,6 @@ import { eq, desc } from "drizzle-orm"
 import { getAVIncomeStatements, getAVBalanceSheets, getAVCashFlowStatements, getAVOverview } from "@/lib/api/alphavantage"
 import { getCompanyProfile } from "@/lib/api/fmp"
 import { getFinnhubProfile, getFinnhubQuote } from "@/lib/api/finnhub"
-import { headers } from "next/headers"
-
-// ─── Simple in-memory rate limiter (3 requests / 60s per IP) ─────────────────
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-const RATE_LIMIT = 3
-const RATE_WINDOW = 60_000 // 1 minute
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(ip)
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW })
-    return true
-  }
-  if (entry.count >= RATE_LIMIT) return false
-  entry.count++
-  return true
-}
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -195,15 +177,7 @@ export async function POST(
     return Response.json({ error: "Invalid symbol", code: "INVALID_SYMBOL" }, { status: 400 })
   }
 
-  // Rate limit: 3 requests / 60s per IP
-  const headerList = await headers()
-  const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
-  if (!checkRateLimit(ip)) {
-    return Response.json(
-      { error: "Too many requests. Please wait before generating another report.", code: "RATE_LIMIT" },
-      { status: 429 }
-    )
-  }
+  // Rate limiting is handled by middleware.ts (3 POST requests / 60s per IP)
 
   // Collect all context data in parallel
   const [fmpProfile, overviewData, financialSummary] = await Promise.all([

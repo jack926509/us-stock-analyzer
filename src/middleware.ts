@@ -40,11 +40,14 @@ export function middleware(req: NextRequest) {
 
   // ── Rate limit API routes ────────────────────────────────────
   if (pathname.startsWith("/api/")) {
-    // AI analysis: 3 requests per 60s
-    const limit = pathname.startsWith("/api/analysis") ? 3 : 60
-    const window = pathname.startsWith("/api/analysis") ? 60_000 : 60_000
+    // AI analysis POST (generates Claude report): 3 per 60s per IP
+    // AI analysis GET (reads history from DB): use general limit
+    const isAnalysisPost =
+      pathname.startsWith("/api/analysis") && req.method === "POST"
+    const key = isAnalysisPost ? `analysis:${ip}` : ip
+    const limit = isAnalysisPost ? 3 : 60
 
-    if (isRateLimited(ip, limit, window)) {
+    if (isRateLimited(key, limit, 60_000)) {
       return NextResponse.json(
         { error: "Too many requests. Please slow down." },
         { status: 429, headers: { "Retry-After": "60" } }
