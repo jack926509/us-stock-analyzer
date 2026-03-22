@@ -1,4 +1,4 @@
-export const PROMPT_VERSION = "v1.0"
+export const PROMPT_VERSION = "v1.1"
 
 export const ANALYST_SYSTEM_PROMPT = `
 你是一位頂級華爾街投資銀行的首席分析師（Managing Director 級別）。
@@ -54,6 +54,7 @@ export function buildUserPrompt(params: {
   financialSummary: string
   keyMetricsSummary: string
   newsSummary: string
+  peerSummary: string
   price: number
   marketCap: string
   pe: number | null
@@ -66,6 +67,9 @@ ${params.financialSummary}
 
 【核心指標】
 ${params.keyMetricsSummary}
+
+【同業估值比較】
+${params.peerSummary}
 
 【近期新聞與事件】
 ${params.newsSummary}

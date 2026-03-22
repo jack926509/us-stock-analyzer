@@ -3,12 +3,13 @@
 import { useMemo } from "react"
 import { calculateScore } from "@/lib/scoring"
 import { cn } from "@/lib/utils"
-import type { FmpKeyMetrics, FmpRatios } from "@/lib/api/fmp"
+import type { FmpKeyMetrics, FmpRatios, FmpIncomeStatement } from "@/lib/api/fmp"
 import type { ScoreDimension } from "@/lib/scoring"
 
 interface Props {
   keyMetrics: FmpKeyMetrics[]
   ratios: FmpRatios[]
+  income?: FmpIncomeStatement[]
   sector?: string
   isLoading?: boolean
 }
@@ -93,11 +94,11 @@ function DimensionBar({ dim }: { dim: ScoreDimension }) {
   )
 }
 
-export function ScoreCard({ keyMetrics, ratios, sector, isLoading }: Props) {
+export function ScoreCard({ keyMetrics, ratios, income, sector, isLoading }: Props) {
   const result = useMemo(() => {
     if (!keyMetrics.length && !ratios.length) return null
-    return calculateScore(keyMetrics, ratios, sector)
-  }, [keyMetrics, ratios, sector])
+    return calculateScore(keyMetrics, ratios, sector, income)
+  }, [keyMetrics, ratios, sector, income])
 
   if (isLoading) {
     return (
@@ -145,7 +146,7 @@ export function ScoreCard({ keyMetrics, ratios, sector, isLoading }: Props) {
       </div>
 
       <p className="mt-4 text-[10px] text-stone-500">
-        * 評分僅供參考，基於現有財務數據計算。成長性維度使用 PEG 比率作為代理指標，數據有限時準確度降低。
+        * 評分僅供參考，基於現有財務數據計算。成長動能以 YoY 年度營收成長率為主，無收入數據時改用 PEG 比率。
       </p>
     </div>
   )

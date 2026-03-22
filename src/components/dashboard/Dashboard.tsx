@@ -52,10 +52,18 @@ export function Dashboard() {
             <WatchlistTable data={data} isLoading={isLoading} />
           </div>
 
-          {/* 側邊面板 */}
-          {data.length > 0 && (
+          {/* 側邊面板 — always reserve space during load to prevent layout shift */}
+          {(isLoading || data.length > 0) && (
             <div className="w-56 shrink-0">
-              <MetricsPanel data={data} />
+              {isLoading ? (
+                <div className="flex flex-col gap-4">
+                  {[72, 160, 160].map((h, i) => (
+                    <div key={i} className="animate-pulse rounded-xl bg-black/5" style={{ height: h }} />
+                  ))}
+                </div>
+              ) : (
+                <MetricsPanel data={data} />
+              )}
             </div>
           )}
         </div>

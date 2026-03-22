@@ -2,44 +2,55 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { TrendingUp, TrendingDown } from "lucide-react"
-import { Card } from "@/components/ui/card"
 import type { FmpQuote } from "@/lib/api/fmp"
 
 // ETF 代理：SPY ≈ S&P 500, QQQ ≈ NASDAQ 100, DIA ≈ Dow Jones
-const INDEX_LABELS: Record<string, string> = {
-  SPY: "S&P 500 (SPY)",
-  QQQ: "NASDAQ 100 (QQQ)",
-  DIA: "Dow Jones (DIA)",
+const INDEX_META: Record<string, { short: string; full: string }> = {
+  SPY: { short: "S&P 500", full: "SPY" },
+  QQQ: { short: "NASDAQ 100", full: "QQQ" },
+  DIA: { short: "Dow Jones", full: "DIA" },
 }
 
-function IndexCard({ quote }: { quote: FmpQuote }) {
+function IndexRow({ quote }: { quote: FmpQuote }) {
   const isUp = quote.changePercentage >= 0
-  const label = INDEX_LABELS[quote.symbol] ?? quote.name
+  const meta = INDEX_META[quote.symbol]
+  const color = isUp ? "text-[#006e3f]" : "text-[#ff4757]"
+  const bg = isUp ? "bg-[#00d47e]/10" : "bg-[#ff4757]/10"
 
   return (
-    <Card className="flex-1 border-black/[0.07] bg-white p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 font-num text-xl font-bold text-stone-900">
-        {quote.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-      </p>
-      <div className={`mt-1 flex items-center gap-1 text-sm font-medium ${isUp ? "text-[#006e3f]" : "text-[#ff4757]"}`}>
-        {isUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-        <span>{isUp ? "+" : ""}{quote.changePercentage.toFixed(2)}%</span>
-        <span className="text-xs font-normal text-muted-foreground">
-          ({isUp ? "+" : ""}{quote.change.toFixed(2)})
-        </span>
+    <div className="flex flex-1 items-center gap-3 px-4 py-2.5">
+      {/* Index name */}
+      <div className="w-28 shrink-0">
+        <span className="text-xs font-semibold text-stone-700">{meta?.short ?? quote.symbol}</span>
+        <span className="ml-1 text-[10px] text-stone-400">{meta?.full}</span>
       </div>
-    </Card>
+
+      {/* Price */}
+      <span className="font-num w-20 shrink-0 text-sm font-bold text-stone-900 tabular-nums">
+        {quote.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </span>
+
+      {/* Change badge */}
+      <span className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${color} ${bg}`}>
+        {isUp ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+        {isUp ? "+" : ""}{quote.changePercentage.toFixed(2)}%
+      </span>
+
+      {/* Absolute change */}
+      <span className={`text-xs tabular-nums ${color} opacity-70`}>
+        ({isUp ? "+" : ""}{quote.change.toFixed(2)})
+      </span>
+    </div>
   )
 }
 
-function IndexCardSkeleton() {
+function SkeletonRow() {
   return (
-    <Card className="flex-1 animate-pulse border-black/[0.07] bg-black/[0.04] p-4">
-      <div className="h-3 w-16 rounded bg-black/[0.08]" />
-      <div className="mt-2 h-6 w-28 rounded bg-black/[0.08]" />
-      <div className="mt-2 h-4 w-20 rounded bg-black/[0.08]" />
-    </Card>
+    <div className="flex flex-1 items-center gap-3 px-4 py-2.5">
+      <div className="h-3.5 w-28 animate-pulse rounded bg-black/[0.07]" />
+      <div className="h-3.5 w-20 animate-pulse rounded bg-black/[0.07]" />
+      <div className="h-5 w-16 animate-pulse rounded-full bg-black/[0.07]" />
+    </div>
   )
 }
 
@@ -54,10 +65,10 @@ export function MarketOverview() {
   const quotes = Array.isArray(data) ? data : []
 
   return (
-    <div className="flex gap-4">
+    <div className="flex items-center divide-x divide-black/[0.06] overflow-hidden rounded-xl border border-black/[0.07] bg-white">
       {isLoading || quotes.length === 0
-        ? [0, 1, 2].map((i) => <IndexCardSkeleton key={i} />)
-        : quotes.map((q) => <IndexCard key={q.symbol} quote={q} />)}
+        ? [0, 1, 2].map((i) => <SkeletonRow key={i} />)
+        : quotes.map((q) => <IndexRow key={q.symbol} quote={q} />)}
     </div>
   )
 }

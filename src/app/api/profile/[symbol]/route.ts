@@ -15,14 +15,12 @@ export async function GET(
       return Response.json({ error: "Invalid symbol", code: "INVALID_SYMBOL" }, { status: 400 })
     }
 
-    // FMP profile first
-    const fmpProfile = await getCompanyProfile(symbol)
-    if (fmpProfile) {
-      return Response.json(fmpProfile)
-    }
+    // Finnhub first — saves FMP quota for financial statements
+    const [fhProfile, fhQuote] = await Promise.all([
+      getFinnhubProfile(symbol),
+      getFinnhubQuote(symbol),
+    ])
 
-    // Finnhub fallback
-    const fhProfile = await getFinnhubProfile(symbol)
     if (fhProfile) {
       return Response.json({
         symbol,
@@ -36,16 +34,21 @@ export async function GET(
         website: fhProfile.weburl || "",
         marketCap: (fhProfile.marketCapitalization ?? 0) * 1_000_000,
         beta: 0,
-        price: 0,
-        change: 0,
-        changePercentage: 0,
+        price: fhQuote?.price ?? 0,
+        change: fhQuote?.change ?? 0,
+        changePercentage: fhQuote?.changePercentage ?? 0,
         country: "",
       })
     }
 
-    // At least try to get quote data
-    const quote = await getFinnhubQuote(symbol)
-    if (quote) {
+    // Finnhub has no data — fall back to FMP
+    const fmpProfile = await getCompanyProfile(symbol)
+    if (fmpProfile) {
+      return Response.json(fmpProfile)
+    }
+
+    // Last resort: quote-only
+    if (fhQuote) {
       return Response.json({
         symbol,
         companyName: symbol,
@@ -58,9 +61,9 @@ export async function GET(
         website: "",
         marketCap: 0,
         beta: 0,
-        price: quote.price,
-        change: quote.change,
-        changePercentage: quote.changePercentage,
+        price: fhQuote.price,
+        change: fhQuote.change,
+        changePercentage: fhQuote.changePercentage,
         country: "",
       })
     }

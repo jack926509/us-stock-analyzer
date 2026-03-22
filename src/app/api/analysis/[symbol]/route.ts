@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import axios from "axios"
 import { db } from "@/lib/db"
-import { analysisReports } from "@/lib/db/schema"
+import { analysisReports, financialCache } from "@/lib/db/schema"
 import { validateSymbol } from "@/lib/validations"
 import { ANALYST_SYSTEM_PROMPT, buildUserPrompt, PROMPT_VERSION } from "@/config/analyst-prompt"
 import { eq, desc, and } from "drizzle-orm"
@@ -15,8 +15,28 @@ import {
   getCompanyProfile,
 } from "@/lib/api/fmp"
 import { getFinnhubProfile, getFinnhubQuote } from "@/lib/api/finnhub"
+import type { PeerData } from "@/app/api/peers/[symbol]/route"
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+// ─── SQLite cache helper ──────────────────────────────────────────────────────
+
+async function readCache<T>(symbol: string, reportType: string): Promise<T[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(financialCache)
+      .where(and(
+        eq(financialCache.symbol, symbol),
+        eq(financialCache.reportType, reportType),
+        eq(financialCache.period, "annual"),
+        eq(financialCache.fiscalYear, "list_annual"),
+      ))
+      .limit(1)
+    if (rows.length > 0) return JSON.parse(rows[0].data) as T[]
+  } catch { /* ignore */ }
+  return []
+}
 
 // ─── Data Builders ────────────────────────────────────────────────────────────
 
@@ -28,11 +48,16 @@ function fmtB(n: number) {
 }
 
 async function buildFinancialSummary(symbol: string): Promise<string> {
-  const [income, cashflow, balance] = await Promise.all([
+  let [income, cashflow, balance] = await Promise.all([
     getIncomeStatements(symbol, "annual", 3),
     getCashFlowStatements(symbol, "annual", 3),
     getBalanceSheets(symbol, "annual", 3),
   ])
+
+  // Fallback: read from SQLite financial_cache when FMP quota exhausted
+  if (!income.length) income = await readCache(symbol, "income")
+  if (!cashflow.length) cashflow = await readCache(symbol, "cashflow")
+  if (!balance.length) balance = await readCache(symbol, "balance")
 
   if (!income.length) return "（無法取得財務數據）"
 
@@ -97,10 +122,15 @@ async function buildNewsSummary(symbol: string): Promise<string> {
 }
 
 async function buildKeyMetricsSummary(symbol: string): Promise<string> {
-  const [kms, ratios] = await Promise.all([
+  let [kms, ratios] = await Promise.all([
     getKeyMetrics(symbol, "annual", 1).catch(() => []),
     getFinancialRatios(symbol, "annual", 1).catch(() => []),
   ])
+
+  // Fallback: SQLite cache
+  if (!kms.length) kms = await readCache(symbol, "keyMetrics")
+  if (!ratios.length) ratios = await readCache(symbol, "ratios")
+
   const km = kms[0]
   const r = ratios[0]
   if (!km && !r) return "（無法取得核心指標）"
@@ -123,6 +153,71 @@ async function buildKeyMetricsSummary(symbol: string): Promise<string> {
     if (r.currentRatio) parts.push(`流動比率: ${r.currentRatio.toFixed(2)}`)
   }
   return parts.join(" | ").slice(0, 500)
+}
+
+async function buildPeerSummary(symbol: string): Promise<string> {
+  try {
+    const { default: axiosLib } = await import("axios")
+    const FMP_STABLE = "https://financialmodelingprep.com/stable"
+    const key = process.env.FMP_API_KEY
+    if (!key) return "（無法取得同業數據）"
+
+    // Fetch target peers via FMP v4
+    let peerSymbols: string[] = []
+    try {
+      const { data } = await axiosLib.get<Array<{ peersList: string[] }>>(
+        "https://financialmodelingprep.com/api/v4/stock_peers",
+        { params: { symbol, apikey: key }, timeout: 6000 }
+      )
+      if (Array.isArray(data) && data[0]?.peersList) {
+        peerSymbols = data[0].peersList.slice(0, 4)
+      }
+    } catch { /* ignore */ }
+
+    const allSymbols = [symbol, ...peerSymbols.filter((s) => s !== symbol)].slice(0, 5)
+
+    const results = await Promise.allSettled(
+      allSymbols.map(async (sym): Promise<PeerData | null> => {
+        try {
+          const [profRes, kmRes, rtRes] = await Promise.allSettled([
+            axiosLib.get<Record<string, unknown>[]>(`${FMP_STABLE}/profile`, { params: { symbol: sym, apikey: key }, timeout: 6000 }),
+            axiosLib.get<Record<string, unknown>[]>(`${FMP_STABLE}/key-metrics`, { params: { symbol: sym, period: "annual", limit: 1, apikey: key }, timeout: 6000 }),
+            axiosLib.get<Record<string, unknown>[]>(`${FMP_STABLE}/ratios`, { params: { symbol: sym, period: "annual", limit: 1, apikey: key }, timeout: 6000 }),
+          ])
+          const prof = profRes.status === "fulfilled" && Array.isArray(profRes.value.data) ? profRes.value.data[0] : null
+          if (!prof) return null
+          const km = kmRes.status === "fulfilled" && Array.isArray(kmRes.value.data) ? kmRes.value.data[0] : null
+          const rt = rtRes.status === "fulfilled" && Array.isArray(rtRes.value.data) ? rtRes.value.data[0] : null
+          const n = (v: unknown) => { const x = Number(v); return v != null && !isNaN(x) && isFinite(x) && x !== 0 ? x : null }
+          return {
+            symbol: sym, companyName: String(prof.companyName ?? sym),
+            marketCap: Number(prof.marketCap ?? 0), price: Number(prof.price ?? 0),
+            sector: String(prof.sector ?? ""), isTarget: sym === symbol,
+            peRatio: n(km?.peRatio) ?? n(rt?.priceToEarningsRatio),
+            pbRatio: n(km?.pbRatio), psRatio: n(km?.psRatio),
+            evToEbitda: n(km?.evToEbitda) ?? n(rt?.enterpriseValueMultiple),
+            roe: n(km?.roe) ?? n(rt?.returnOnEquity),
+            grossMargin: n(rt?.grossProfitMargin), revenueGrowth: null,
+          }
+        } catch { return null }
+      })
+    )
+
+    const peers = results.map((r) => r.status === "fulfilled" ? r.value : null).filter((p): p is PeerData => p !== null)
+    if (!peers.length) return "（無同業數據）"
+
+    const fmt = (v: number | null, d = 1, sfx = "x") => v != null ? v.toFixed(d) + sfx : "N/A"
+    const fmtPct = (v: number | null) => v != null ? (v * 100).toFixed(1) + "%" : "N/A"
+    const fmtCap = (v: number) => v >= 1e12 ? `$${(v / 1e12).toFixed(1)}T` : v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : "N/A"
+
+    const header = "公司 | 市值 | P/E | P/B | P/S | EV/EBITDA | ROE | 毛利率"
+    const rows = peers.map((p) =>
+      `${p.symbol}${p.isTarget ? "★" : ""} | ${fmtCap(p.marketCap)} | ${fmt(p.peRatio)} | ${fmt(p.pbRatio)} | ${fmt(p.psRatio)} | ${fmt(p.evToEbitda)} | ${fmtPct(p.roe)} | ${fmtPct(p.grossMargin)}`
+    )
+    return [header, ...rows].join("\n").slice(0, 800)
+  } catch {
+    return "（無法取得同業數據）"
+  }
 }
 
 function parseRating(content: string): string | null {
@@ -220,12 +315,13 @@ export async function POST(
   // Rate limiting is handled by middleware.ts (3 POST requests / 60s per IP)
 
   // Collect all context data in parallel (all from FMP — no Alpha Vantage)
-  const [fmpProfile, fmpQuote, financialSummary, keyMetricsSummary, newsSummary] = await Promise.all([
+  const [fmpProfile, fmpQuote, financialSummary, keyMetricsSummary, newsSummary, peerSummary] = await Promise.all([
     getCompanyProfile(symbol).catch(() => null),
     getQuote(symbol).catch(() => null),
     buildFinancialSummary(symbol),
     buildKeyMetricsSummary(symbol),
     buildNewsSummary(symbol),
+    buildPeerSummary(symbol),
   ])
 
   // Profile fallback to Finnhub if FMP returns nothing
@@ -261,6 +357,7 @@ export async function POST(
     financialSummary,
     keyMetricsSummary,
     newsSummary,
+    peerSummary,
     price,
     marketCap,
     pe,

@@ -106,6 +106,153 @@ export async function getFinnhubMarketIndices(): Promise<FmpQuote[]> {
     .filter((q): q is FmpQuote => q !== null)
 }
 
+// ─── Financial Metrics (fallback for FmpKeyMetrics + FmpRatios) ──────────────
+
+import type { FmpKeyMetrics, FmpRatios } from "./fmp"
+
+interface FinnhubMetricAll {
+  [key: string]: number | null | undefined
+}
+
+export async function getFinnhubKeyMetrics(symbol: string): Promise<{
+  keyMetrics: FmpKeyMetrics | null
+  ratios: FmpRatios | null
+}> {
+  try {
+    const { data } = await axios.get<{ metric: FinnhubMetricAll }>(`${BASE_URL}/stock/metric`, {
+      params: { symbol, metric: "all", token: apiKey() },
+      timeout: 8000,
+    })
+    const m = data?.metric
+    if (!m) return { keyMetrics: null, ratios: null }
+
+    const n = (v: unknown) => {
+      const x = Number(v)
+      return v != null && !isNaN(x) && isFinite(x) ? x : 0
+    }
+    // Finnhub margin/ratio fields are in percentage (0–100); FMP uses decimal (0–1)
+    const pctToDecimal = (v: unknown) => {
+      const x = Number(v)
+      return v != null && !isNaN(x) && isFinite(x) ? x / 100 : 0
+    }
+
+    // Helper: try multiple key variants, return first non-zero result
+    const first = (...keys: string[]) => {
+      for (const k of keys) {
+        const v = pctToDecimal(m[k])
+        if (v !== 0) return v
+      }
+      return 0
+    }
+    const firstN = (...keys: string[]) => {
+      for (const k of keys) {
+        const v = n(m[k])
+        if (v !== 0) return v
+      }
+      return 0
+    }
+
+    const keyMetrics: FmpKeyMetrics = {
+      date: new Date().toISOString().slice(0, 10),
+      symbol,
+      revenuePerShare: firstN("revenuePerShareAnnual", "revenuePerShareTTM"),
+      netIncomePerShare: firstN("epsBasicExclExtraItemsAnnual", "epsNormalizedAnnual"),
+      roe: first("roeTTM", "roeAnnual"),
+      roa: first("roaTTM", "roaAnnual"),
+      roic: first("roiTTM", "roiAnnual"),
+      debtToEquity: firstN("totalDebt/totalEquityAnnual", "ltDebt/equityAnnual"),
+      currentRatio: firstN("currentRatioAnnual", "currentRatioQuarterly"),
+      quickRatio: firstN("quickRatioAnnual", "quickRatioQuarterly"),
+      peRatio: firstN("peTTM", "peAnnual", "peNormalizedAnnual"),
+      pbRatio: firstN("pbAnnual", "pbQuarterly"),
+      psRatio: firstN("psTTM", "psAnnual"),
+      evToEbitda: 0,
+      pegRatio: 0,
+      freeCashFlowYield: 0,
+      earningsYield: firstN("peTTM", "peAnnual") > 0 ? 1 / firstN("peTTM", "peAnnual") : 0,
+      dividendYield: first("currentDividendYieldTTM"),
+    }
+
+    const ratios: FmpRatios = {
+      date: new Date().toISOString().slice(0, 10),
+      symbol,
+      grossProfitMargin: first("grossMarginTTM", "grossMarginAnnual"),
+      operatingProfitMargin: first("operatingMarginTTM", "operatingMarginAnnual"),
+      netProfitMargin: first("netMarginTTM", "netMarginAnnual", "pretaxMarginTTM"),
+      returnOnEquity: first("roeTTM", "roeAnnual"),
+      returnOnAssets: first("roaTTM", "roaAnnual"),
+      currentRatio: firstN("currentRatioAnnual", "currentRatioQuarterly"),
+      quickRatio: firstN("quickRatioAnnual", "quickRatioQuarterly"),
+      debtEquityRatio: firstN("totalDebt/totalEquityAnnual"),
+      interestCoverage: firstN("netInterestCoverageAnnual", "netInterestCoverageTTM"),
+      priceToEarningsRatio: firstN("peTTM", "peAnnual"),
+      priceToBookRatioTTM: firstN("pbAnnual", "pbQuarterly"),
+      priceToSalesRatioTTM: firstN("psTTM", "psAnnual"),
+      enterpriseValueMultiple: 0,
+      returnOnCapitalEmployed: first("roiTTM", "roiAnnual"),
+    }
+
+    return { keyMetrics, ratios }
+  } catch {
+    return { keyMetrics: null, ratios: null }
+  }
+}
+
+// ─── Stock Peers (industry-level) ─────────────────────────────────────────────
+
+export async function getFinnhubPeers(symbol: string): Promise<string[]> {
+  try {
+    const { data } = await axios.get<string[]>(`${BASE_URL}/stock/peers`, {
+      params: { symbol, token: apiKey() },
+      timeout: 6000,
+    })
+    return Array.isArray(data) ? data.filter((s) => s !== symbol).slice(0, 8) : []
+  } catch {
+    return []
+  }
+}
+
+// ─── Symbol Search ────────────────────────────────────────────────────────────
+
+interface FinnhubSearchResult {
+  description: string
+  displaySymbol: string
+  symbol: string
+  type: string
+}
+
+interface FinnhubSearchResponse {
+  count: number
+  result: FinnhubSearchResult[]
+}
+
+export async function searchFinnhubSymbols(query: string): Promise<Array<{
+  symbol: string
+  name: string
+  currency: string
+  exchange: string
+  exchangeFullName: string
+}>> {
+  try {
+    const { data } = await axios.get<FinnhubSearchResponse>(`${BASE_URL}/search`, {
+      params: { q: query, exchange: "US", token: apiKey() },
+    })
+    if (!Array.isArray(data?.result)) return []
+    return data.result
+      .filter((r) => r.type === "Common Stock" || r.type === "ETP")
+      .slice(0, 10)
+      .map((r) => ({
+        symbol: r.displaySymbol || r.symbol,
+        name: r.description,
+        currency: "USD",
+        exchange: "US",
+        exchangeFullName: "US Exchange",
+      }))
+  } catch {
+    return []
+  }
+}
+
 // ─── Company Profile (as fallback) ───────────────────────────────────────────
 
 export async function getFinnhubProfile(symbol: string): Promise<FinnhubProfile | null> {

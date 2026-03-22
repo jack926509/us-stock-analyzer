@@ -333,6 +333,7 @@ export function WallStreetAnalysis({ symbol, price }: Props) {
 
       {/* Analysis content */}
       {displayContent && (
+        <div className="relative">
         <div
           ref={scrollRef}
           className="max-h-[70vh] overflow-y-auto rounded-lg bg-[#faf6f1] p-5 ring-1 ring-black/[0.08]"
@@ -384,6 +385,11 @@ export function WallStreetAnalysis({ symbol, price }: Props) {
           {isStreaming && (
             <span className="mt-1 inline-block h-4 w-0.5 animate-pulse bg-[#00d47e]" />
           )}
+        </div>
+        {/* Bottom fade — hints more content below */}
+        {!isStreaming && (
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 rounded-b-lg bg-gradient-to-t from-[#faf6f1] to-transparent" />
+        )}
         </div>
       )}
     </div>

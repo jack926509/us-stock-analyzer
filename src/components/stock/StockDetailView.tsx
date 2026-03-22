@@ -126,27 +126,32 @@ export function StockDetailView({ symbol }: Props) {
             </TabsList>
 
             {/* Period toggle */}
-            <div className="flex items-center gap-1 rounded-lg bg-black/5 p-1">
-              <button
-                onClick={() => setPeriod("annual")}
-                className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                  period === "annual"
-                    ? "bg-black/[0.1] text-stone-900"
-                    : "text-stone-600 hover:text-stone-600"
-                }`}
-              >
-                年度
-              </button>
-              <button
-                onClick={() => setPeriod("quarterly")}
-                className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                  period === "quarterly"
-                    ? "bg-black/[0.1] text-stone-900"
-                    : "text-stone-600 hover:text-stone-600"
-                }`}
-              >
-                季度
-              </button>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1 rounded-lg bg-black/5 p-1">
+                <button
+                  onClick={() => setPeriod("annual")}
+                  className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                    period === "annual"
+                      ? "bg-black/[0.1] text-stone-900"
+                      : "text-stone-600 hover:text-stone-600"
+                  }`}
+                >
+                  年度
+                </button>
+                <button
+                  onClick={() => setPeriod("quarterly")}
+                  className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                    period === "quarterly"
+                      ? "bg-black/[0.1] text-stone-900"
+                      : "text-stone-600 hover:text-stone-600"
+                  }`}
+                >
+                  季度
+                </button>
+              </div>
+              <p className="text-[10px] text-stone-400">
+                總覽 & 核心指標固定顯示年度數據
+              </p>
             </div>
           </div>
 
@@ -213,6 +218,7 @@ export function StockDetailView({ symbol }: Props) {
                   <ScoreCard
                     keyMetrics={financials?.keyMetrics ?? []}
                     ratios={financials?.ratios ?? []}
+                    income={financials?.income}
                     sector={profile?.sector}
                     isLoading={financialsLoading}
                   />

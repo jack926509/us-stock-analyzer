@@ -1,5 +1,50 @@
 import axios from "axios"
 import { validateSymbol } from "@/lib/validations"
+import { getFinnhubProfile, getFinnhubQuote, getFinnhubPeers } from "@/lib/api/finnhub"
+
+// ─── Curated industry peer map (last-resort fallback) ─────────────────────────
+const CURATED_PEERS: Record<string, string[]> = {
+  // Airlines
+  DAL: ["UAL","AAL","LUV","JBLU","ALK","SAVE","ALGT"],
+  UAL: ["DAL","AAL","LUV","JBLU","ALK","SAVE"],
+  AAL: ["DAL","UAL","LUV","JBLU","ALK","SAVE"],
+  LUV: ["DAL","UAL","AAL","JBLU","ALK","SAVE"],
+  JBLU: ["DAL","UAL","AAL","LUV","ALK","SAVE"],
+  ALK: ["DAL","UAL","AAL","LUV","JBLU"],
+  // Big Tech
+  AAPL: ["MSFT","GOOGL","META","AMZN","NVDA"],
+  MSFT: ["AAPL","GOOGL","META","AMZN","NVDA"],
+  GOOGL: ["AAPL","MSFT","META","AMZN"],
+  META:  ["AAPL","MSFT","GOOGL","SNAP","PINS"],
+  AMZN: ["MSFT","GOOGL","AAPL","WMT","COST"],
+  NVDA: ["AMD","INTC","QCOM","AVGO","MU"],
+  AMD:  ["NVDA","INTC","QCOM","AVGO","MU"],
+  INTC: ["NVDA","AMD","QCOM","AVGO","MU"],
+  // EV / Auto
+  TSLA: ["F","GM","RIVN","LCID","NIO","LI"],
+  F:    ["GM","TSLA","STLA","HMC","TM"],
+  GM:   ["F","TSLA","STLA","HMC","TM"],
+  // Financials
+  JPM: ["BAC","WFC","C","GS","MS"],
+  BAC: ["JPM","WFC","C","GS","MS"],
+  WFC: ["JPM","BAC","C","USB","PNC"],
+  GS:  ["MS","JPM","BAC","C","BX"],
+  MS:  ["GS","JPM","BAC","C","BX"],
+  // Energy
+  XOM: ["CVX","COP","OXY","SLB","EOG"],
+  CVX: ["XOM","COP","OXY","SLB","EOG"],
+  // Pharma / Biotech
+  JNJ: ["PFE","ABBV","MRK","LLY","BMY"],
+  PFE: ["JNJ","ABBV","MRK","LLY","BMY","MRNA"],
+  LLY: ["JNJ","PFE","ABBV","MRK","BMY"],
+  // Retail
+  WMT: ["AMZN","COST","TGT","HD","LOW"],
+  COST: ["WMT","TGT","BJ","AMZN"],
+  TGT: ["WMT","COST","AMZN","KR"],
+  // Streaming / Media
+  NFLX: ["DIS","PARA","WBD","SPOT","ROKU"],
+  DIS:  ["NFLX","PARA","WBD","CMCSA"],
+}
 
 const FMP_STABLE = "https://financialmodelingprep.com/stable"
 const FMP_V3 = "https://financialmodelingprep.com/api/v3"
@@ -45,7 +90,30 @@ async function fetchPeerData(symbol: string): Promise<PeerData | null> {
 
     const profileData = profileRes.status === "fulfilled" ? profileRes.value.data : null
     const profile = Array.isArray(profileData) ? profileData[0] : null
-    if (!profile) return null
+
+    // FMP unavailable — Finnhub fallback for basic data
+    if (!profile) {
+      const [fhProf, fhQuote] = await Promise.all([
+        getFinnhubProfile(symbol).catch(() => null),
+        getFinnhubQuote(symbol).catch(() => null),
+      ])
+      if (!fhProf && !fhQuote) return null
+      return {
+        symbol,
+        companyName: fhProf?.name ?? symbol,
+        marketCap: fhQuote?.marketCap ?? 0,
+        price: fhQuote?.price ?? 0,
+        sector: fhProf?.finnhubIndustry ?? "",
+        peRatio: fhQuote?.pe ?? null,
+        pbRatio: null,
+        psRatio: null,
+        evToEbitda: null,
+        roe: null,
+        grossMargin: null,
+        revenueGrowth: null,
+        isTarget: false,
+      }
+    }
 
     const km = metricsRes.status === "fulfilled" && Array.isArray(metricsRes.value.data)
       ? metricsRes.value.data[0] ?? null : null
@@ -145,7 +213,7 @@ export async function GET(
       }
     } catch { /* ignore */ }
 
-    // Try FMP v4 peers first
+    // ── 1. FMP v4/stock_peers (industry-level, best quality) ──────────────────
     let peerSymbols: string[] = []
     try {
       const { data } = await axios.get<Array<{ peersList: string[] }>>(
@@ -153,16 +221,26 @@ export async function GET(
         { params: { symbol, apikey: apiKey() }, timeout: 8000 }
       )
       if (Array.isArray(data) && data[0]?.peersList) {
-        peerSymbols = data[0].peersList.slice(0, 5)
+        peerSymbols = data[0].peersList.slice(0, 7)
       }
     } catch { /* may not be available on free tier */ }
 
-    // Fallback: use sector screener
+    // ── 2. Finnhub /stock/peers (industry-level, free, reliable) ──────────────
+    if (peerSymbols.length === 0) {
+      peerSymbols = await getFinnhubPeers(symbol)
+    }
+
+    // ── 3. FMP sector screener (sector-level, broader) ────────────────────────
     if (peerSymbols.length === 0 && targetSector) {
       peerSymbols = await getPeersFromScreener(targetSector, targetExchange, symbol, targetMarketCap)
     }
 
-    const allSymbols = [symbol, ...peerSymbols.filter((s) => s !== symbol)].slice(0, 6)
+    // ── 4. Curated map (hardcoded last resort) ─────────────────────────────────
+    if (peerSymbols.length === 0 && CURATED_PEERS[symbol]) {
+      peerSymbols = CURATED_PEERS[symbol]
+    }
+
+    const allSymbols = [symbol, ...peerSymbols.filter((s) => s !== symbol)].slice(0, 8)
     const results = await Promise.all(allSymbols.map((s) => fetchPeerData(s)))
     const peers = results.filter(Boolean) as PeerData[]
 

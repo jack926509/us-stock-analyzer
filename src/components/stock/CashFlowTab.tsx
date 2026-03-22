@@ -50,7 +50,12 @@ const ROWS = [
 export function CashFlowTab({ data, isLoading }: Props) {
   if (isLoading) return <div className="h-64 animate-pulse rounded-lg bg-black/5" />
   if (!data || data.length === 0) {
-    return <p className="py-8 text-center text-sm text-stone-500">無現金流量表資料</p>
+    return (
+      <div className="flex flex-col items-center gap-2 py-12 text-center">
+        <p className="text-sm font-medium text-stone-500">現金流量表暫時無法取得</p>
+        <p className="text-xs text-stone-400">FMP API 每日配額已達上限，財務報表數據將於配額重置後自動恢復（通常為隔日 UTC 00:00）</p>
+      </div>
+    )
   }
 
   const sorted = [...data].reverse()

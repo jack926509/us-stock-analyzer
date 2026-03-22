@@ -1,4 +1,4 @@
-import type { FmpKeyMetrics, FmpRatios } from "@/lib/api/fmp"
+import type { FmpKeyMetrics, FmpRatios, FmpIncomeStatement } from "@/lib/api/fmp"
 
 type Sector = "Technology" | "Financials" | "Utilities" | "Energy" | "Healthcare" | "default"
 
@@ -101,7 +101,8 @@ function getGrade(score: number): string {
 export function calculateScore(
   keyMetrics: FmpKeyMetrics[],
   ratios: FmpRatios[],
-  sectorStr?: string
+  sectorStr?: string,
+  income?: FmpIncomeStatement[]
 ): ScoreResult {
   const sector = getSector(sectorStr)
   const bm = SECTOR_BENCHMARKS[sector]
@@ -114,9 +115,18 @@ export function calculateScore(
   const grossMarginScore = scoreHigher(r?.grossProfitMargin ?? 0, bm.grossMarginGood, bm.grossMarginGood * 1.3)
   const profitability = clamp((roeScore + netMarginScore + grossMarginScore) / 3)
 
-  // ── 成長動能 (25%) — 使用 PEG 作為成長品質代理指標 ─────────────────────
+  // ── 成長動能 (25%) — 優先使用 YoY 營收成長率，無資料時降回 PEG ─────────
   let growthScore = 50
-  if (km?.pegRatio && km.pegRatio > 0 && km.pegRatio <= 10) {
+  const rev0 = income?.[0]?.revenue
+  const rev1 = income?.[1]?.revenue
+  if (rev0 && rev1 && rev1 > 0) {
+    const yoyGrowth = (rev0 - rev1) / rev1
+    if (yoyGrowth >= 0.30) growthScore = 90
+    else if (yoyGrowth >= 0.15) growthScore = 75
+    else if (yoyGrowth >= 0.05) growthScore = 60
+    else if (yoyGrowth >= 0) growthScore = 45
+    else growthScore = 25
+  } else if (km?.pegRatio && km.pegRatio > 0 && km.pegRatio <= 10) {
     if (km.pegRatio <= 1.0) growthScore = 90
     else if (km.pegRatio <= 1.5) growthScore = 75
     else if (km.pegRatio <= 2.5) growthScore = 60

@@ -6,11 +6,12 @@ import { validateSymbol } from "@/lib/validations"
 import { eq, inArray } from "drizzle-orm"
 import type { FmpQuote } from "@/lib/api/fmp"
 
-// FMP 優先，失敗時 fallback 到 Finnhub
+// Finnhub 優先（即時報價便宜、無每日上限），FMP 作 fallback
+// FMP quota 保留給 financial statements（250/day 珍貴）
 async function getQuoteWithFallback(symbol: string): Promise<FmpQuote | null> {
-  const fmpQuote = await getQuote(symbol)
-  if (fmpQuote && fmpQuote.price > 0) return fmpQuote
-  return getFinnhubQuote(symbol)
+  const fhQuote = await getFinnhubQuote(symbol)
+  if (fhQuote && fhQuote.price > 0) return fhQuote
+  return getQuote(symbol)
 }
 
 // GET /api/stocks — 取得追蹤清單含最新報價

@@ -7,6 +7,7 @@ import {
   getKeyMetrics,
   getFinancialRatios,
 } from "@/lib/api/fmp"
+import { getFinnhubKeyMetrics } from "@/lib/api/finnhub"
 import { validateSymbol } from "@/lib/validations"
 import { and, eq } from "drizzle-orm"
 
@@ -67,6 +68,12 @@ async function getCachedOrFetch<T>(
           fetchedAt: new Date().toISOString(),
         },
       })
+    return fresh
+  }
+
+  // Fresh fetch returned empty (likely API quota) — fall back to stale cache
+  if (cached.length > 0) {
+    return JSON.parse(cached[0].data) as T
   }
 
   return fresh
@@ -97,12 +104,21 @@ export async function GET(
       getCachedOrFetch(symbol, "ratios", "annual", () => getFinancialRatios(symbol, "annual", 5)),
     ])
 
+    // If FMP keyMetrics/ratios unavailable (quota), fall back to Finnhub metric endpoint
+    let resolvedKeyMetrics = keyMetrics ?? []
+    let resolvedRatios = ratios ?? []
+    if (!resolvedKeyMetrics.length || !resolvedRatios.length) {
+      const fhMetrics = await getFinnhubKeyMetrics(symbol)
+      if (!resolvedKeyMetrics.length && fhMetrics.keyMetrics) resolvedKeyMetrics = [fhMetrics.keyMetrics]
+      if (!resolvedRatios.length && fhMetrics.ratios) resolvedRatios = [fhMetrics.ratios]
+    }
+
     return Response.json({
       income: income ?? [],
       balance: balance ?? [],
       cashflow: cashflow ?? [],
-      keyMetrics: keyMetrics ?? [],
-      ratios: ratios ?? [],
+      keyMetrics: resolvedKeyMetrics,
+      ratios: resolvedRatios,
     })
   } catch (err) {
     console.error("[GET /api/financials]", err)

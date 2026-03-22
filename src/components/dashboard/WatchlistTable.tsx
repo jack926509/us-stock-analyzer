@@ -19,11 +19,16 @@ import { Badge } from "@/components/ui/badge"
 import type { FmpQuote } from "@/lib/api/fmp"
 import type { Watchlist } from "@/lib/db/schema"
 
-function StockLogo({ symbol }: { symbol: string }) {
-  const [failed, setFailed] = useState(false)
-  const src = `https://financialmodelingprep.com/image-stock/${symbol}.png`
+const LOGO_SRCS = (symbol: string) => [
+  `https://financialmodelingprep.com/image-stock/${symbol}.png`,
+  `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
+]
 
-  if (failed) {
+function StockLogo({ symbol }: { symbol: string }) {
+  const srcs = LOGO_SRCS(symbol)
+  const [idx, setIdx] = useState(0)
+
+  if (idx >= srcs.length) {
     return (
       <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-[10px] font-bold text-stone-500 ring-1 ring-black/[0.07]">
         {symbol.slice(0, 2)}
@@ -34,12 +39,13 @@ function StockLogo({ symbol }: { symbol: string }) {
   return (
     <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white ring-1 ring-black/[0.07]">
       <Image
-        src={src}
+        key={srcs[idx]}
+        src={srcs[idx]}
         alt={symbol}
         width={28}
         height={28}
         className="size-full object-contain"
-        onError={() => setFailed(true)}
+        onError={() => setIdx((i) => i + 1)}
         unoptimized
       />
     </div>
