@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -122,6 +122,13 @@ export function WallStreetAnalysis({ symbol, price }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
 
+  // Auto-scroll to bottom while streaming (useEffect avoids direct DOM mutation in render loop)
+  useEffect(() => {
+    if (isStreaming && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [streamContent, isStreaming])
+
   // Fetch historical reports
   const { data: reports = [] } = useQuery<AnalysisReport[]>({
     queryKey: ["analysis-reports", symbol],
@@ -167,10 +174,6 @@ export function WallStreetAnalysis({ symbol, price }: Props) {
         if (done) break
         content += decoder.decode(value, { stream: true })
         setStreamContent(content)
-        // Auto-scroll to bottom while streaming
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-        }
       }
 
       // Refresh historical reports list after generation

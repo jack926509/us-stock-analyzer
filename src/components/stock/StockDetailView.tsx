@@ -15,6 +15,7 @@ import { WallStreetAnalysis } from "@/components/analysis/WallStreetAnalysis"
 import { NewsPanel } from "@/components/analysis/NewsPanel"
 import { PeerComparison } from "./PeerComparison"
 import { ScoreCard } from "./ScoreCard"
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary"
 import type {
   FmpProfile,
   FmpIncomeStatement,
@@ -150,76 +151,88 @@ export function StockDetailView({ symbol }: Props) {
           </div>
 
           <TabsContent value="overview">
-            <OverviewTab
-              financials={
-                financials
-                  ? {
-                      income: financials.income,
-                      keyMetrics: financials.keyMetrics,
-                      ratios: financials.ratios,
-                    }
-                  : undefined
-              }
-              isLoading={financialsLoading}
-            />
+            <ErrorBoundary>
+              <OverviewTab
+                financials={
+                  financials
+                    ? {
+                        income: financials.income,
+                        keyMetrics: financials.keyMetrics,
+                        ratios: financials.ratios,
+                      }
+                    : undefined
+                }
+                isLoading={financialsLoading}
+              />
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="income">
-            <IncomeStatementTab data={financials?.income ?? []} isLoading={financialsLoading} />
+            <ErrorBoundary>
+              <IncomeStatementTab data={financials?.income ?? []} isLoading={financialsLoading} />
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="balance">
-            <BalanceSheetTab data={financials?.balance ?? []} isLoading={financialsLoading} />
+            <ErrorBoundary>
+              <BalanceSheetTab data={financials?.balance ?? []} isLoading={financialsLoading} />
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="cashflow">
-            <CashFlowTab data={financials?.cashflow ?? []} isLoading={financialsLoading} />
+            <ErrorBoundary>
+              <CashFlowTab data={financials?.cashflow ?? []} isLoading={financialsLoading} />
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="metrics">
-            <KeyMetricsTab
-              keyMetrics={financials?.keyMetrics ?? []}
-              ratios={financials?.ratios ?? []}
-              isLoading={financialsLoading}
-            />
+            <ErrorBoundary>
+              <KeyMetricsTab
+                keyMetrics={financials?.keyMetrics ?? []}
+                ratios={financials?.ratios ?? []}
+                isLoading={financialsLoading}
+              />
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="peers">
             <div className="grid grid-cols-1 gap-6 py-2 xl:grid-cols-[1fr_360px]">
-              {/* Peer Comparison */}
               <div>
                 <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-stone-500">
                   同業比較
                 </h3>
-                <PeerComparison symbol={symbol} />
+                <ErrorBoundary>
+                  <PeerComparison symbol={symbol} />
+                </ErrorBoundary>
               </div>
-
-              {/* Score Card */}
               <div>
                 <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-stone-500">
                   綜合評分
                 </h3>
-                <ScoreCard
-                  keyMetrics={financials?.keyMetrics ?? []}
-                  ratios={financials?.ratios ?? []}
-                  sector={profile?.sector}
-                  isLoading={financialsLoading}
-                />
+                <ErrorBoundary>
+                  <ScoreCard
+                    keyMetrics={financials?.keyMetrics ?? []}
+                    ratios={financials?.ratios ?? []}
+                    sector={profile?.sector}
+                    isLoading={financialsLoading}
+                  />
+                </ErrorBoundary>
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="ai">
             <div className="grid grid-cols-1 gap-6 py-2 xl:grid-cols-[1fr_360px]">
-              {/* AI Analysis */}
-              <WallStreetAnalysis symbol={symbol} price={profile?.price} />
-
-              {/* News sidebar */}
+              <ErrorBoundary>
+                <WallStreetAnalysis symbol={symbol} price={profile?.price} />
+              </ErrorBoundary>
               <div className="min-w-0">
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-500">
                   近期新聞
                 </h3>
-                <NewsPanel symbol={symbol} />
+                <ErrorBoundary>
+                  <NewsPanel symbol={symbol} />
+                </ErrorBoundary>
               </div>
             </div>
           </TabsContent>

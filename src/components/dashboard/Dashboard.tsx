@@ -5,6 +5,7 @@ import { Navbar } from "./Navbar"
 import { MarketOverview } from "./MarketOverview"
 import { WatchlistTable } from "./WatchlistTable"
 import { MetricsPanel } from "./MetricsPanel"
+import { AlertBanner } from "./AlertBanner"
 import type { FmpQuote } from "@/lib/api/fmp"
 import type { Watchlist } from "@/lib/db/schema"
 
@@ -32,6 +33,9 @@ export function Dashboard() {
       <main className="mx-auto w-full max-w-screen-2xl flex-1 px-6 py-6">
         {/* 大盤指數 */}
         <MarketOverview />
+
+        {/* 預警 Banner */}
+        <AlertBanner data={data} />
 
         {/* 主內容：追蹤清單 + 側邊面板 */}
         <div className="mt-6 flex gap-6">
