@@ -1,6 +1,6 @@
 # US Stock Analyzer
 
-美股分析系統 — 整合財務報表、即時報價、AI 華爾街分析視角的個人投資研究工具。
+美股分析系統 — 整合即時行情、三大財務報表、同業比較、AI 研究報告的個人投資輔助工具。
 
 ---
 
@@ -8,37 +8,38 @@
 
 | 模組 | 說明 |
 |------|------|
-| Dashboard | 大盤指數（SPY/QQQ/DIA）+ 追蹤清單即時報價，60 秒自動刷新 |
-| 追蹤清單 | 新增／移除股票，支援排序、產業分佈圓餅圖、Top 5 漲跌榜 |
-| 財務報表 | 三大報表（損益表 / 資產負債表 / 現金流量表）+ 核心指標趨勢圖 |
-| TradingView | 嵌入 K 線圖、技術指標（MA / RSI / MACD）、技術分析摘要 |
-| AI 分析 | Claude claude-sonnet-4-6 生成華爾街級別研究報告，Streaming 即時顯示 |
-| 同業比較 | 與同業 3–5 家公司的核心指標橫向比較 + Radar Chart |
-| 評分系統 | 五維度量化評分（獲利能力 / 成長 / 估值 / 財務健康 / 現金流），依產業基準調整 |
+| Dashboard | S&P 500 / NASDAQ / DOW 即時指數 + 追蹤清單報價，60 秒自動刷新 |
+| 追蹤清單 | 新增／移除股票（附公司 Logo），支援排序、產業分佈圓餅圖、Top 5 漲跌榜 |
+| 財務報表 | 三大報表（損益表 / 資產負債表 / 現金流量表）+ 核心指標趨勢圖，年度 / 季度切換 |
+| TradingView | 嵌入 K 線圖、技術指標（MA / RSI / MACD）及技術分析摘要面板 |
+| 同業比較 | 與同業 3–5 家公司核心指標橫向對比 + Radar Chart |
+| 綜合評分 | 五維度量化評分（獲利能力 / 成長 / 估值 / 財務健康 / 現金流），依行業基準調整 |
+| AI 研究報告 | Claude claude-sonnet-4-6 生成華爾街級別分析，Streaming 即時輸出，歷史報告可回看 |
+| 近期新聞 | Finnhub 公司新聞，情緒分類（正面 / 負面 / 中性） |
 
 ---
 
 ## 系統架構
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                  前端 (Next.js 16 App Router)             │
-│                                                          │
+┌─────────────────────────────────────────────────────────┐
+│               前端 (Next.js 15 App Router)               │
+│                                                         │
 │  Dashboard  │  個股分析  │  TradingView  │  AI 分析      │
 │  (Zustand)  │  (Tabs)   │  (Widget)     │  (Streaming)  │
-└──────┬───────────┬────────────┬──────────────┬───────────┘
-       │           │            │              │
-┌──────▼───────────▼────────────▼──────────────▼───────────┐
-│              後端 API Routes (Next.js)                    │
-│                                                          │
-│  /api/stocks  /api/financials  /api/news  /api/analysis  │
-│  /api/market  /api/peers       /api/search               │
-└──────┬───────────┬────────────┬──────────────┬───────────┘
-       │           │            │              │
-  FMP stable   Finnhub      TradingView    Anthropic
-  (財務/搜尋)  (報價/新聞)   (Widget)       (AI 分析)
+└──────┬───────────┬───────────┬─────────────┬────────────┘
+       │           │           │             │
+┌──────▼───────────▼───────────▼─────────────▼────────────┐
+│              後端 API Routes (Next.js)                   │
+│                                                         │
+│  /api/stocks  /api/financials  /api/peers  /api/news    │
+│  /api/market  /api/profile     /api/analysis            │
+└──────┬───────────┬───────────┬─────────────┬────────────┘
+       │           │           │             │
+  FMP stable   Finnhub    TradingView    Anthropic
+  (財務/搜尋)  (新聞/報價)  (Widget)      (AI 分析)
        │
-  SQLite / Turso (Drizzle ORM)
+  SQLite(開發) / Turso(生產)  via Drizzle ORM
   watchlist / financial_cache / stock_prices / analysis_reports
 ```
 
@@ -46,106 +47,158 @@
 
 ## 技術選型
 
-| 層級 | 技術 | 理由 |
-|------|------|------|
-| 框架 | Next.js 16 (App Router) | SSR + API Routes 一站式，支援 React 19 |
-| UI | shadcn/ui + Tailwind CSS v4 | 金融 Dashboard 深色主題 |
-| 圖表 | Recharts v3 + TradingView Widget | 財務趨勢圖 + 專業 K 線 |
-| 狀態管理 | Zustand | 輕量追蹤清單狀態 |
-| 資料快取 | TanStack Query v5 | Stale-while-revalidate，減少 API 呼叫 |
-| ORM | Drizzle ORM | TypeScript 型別安全，SQLite ↔ Turso 無縫切換 |
-| DB（開發） | SQLite (better-sqlite3) | 本地零設定 |
-| DB（生產） | Turso (LibSQL) | 邊緣部署相容 |
-| AI | Anthropic Claude claude-sonnet-4-6 | ReadableStream Streaming 回應 |
-| 財務資料 | FMP stable API | 搜尋、公司 Profile、財務報表 |
-| 報價 | FMP stable + Finnhub fallback | FMP Premium 端點自動降級至 Finnhub |
+| 層級 | 技術 |
+|------|------|
+| 框架 | Next.js 15 (App Router) |
+| UI | shadcn/ui + Tailwind CSS |
+| 圖表 | Recharts + TradingView Widget |
+| 狀態管理 | Zustand |
+| 資料快取 | TanStack Query v5 |
+| ORM | Drizzle ORM + @libsql/client |
+| 資料庫（開發） | SQLite（file:./dev.db） |
+| 資料庫（生產） | Turso (LibSQL) |
+| AI 分析 | Anthropic Claude claude-sonnet-4-6 |
+| 財務數據 | Financial Modeling Prep (FMP stable API) |
+| 新聞 | Finnhub |
+| 部署 | Zeabur |
 
 ---
 
-## 資料流設計
+## 快取策略
 
-### API 優先順序
-
-```
-報價請求
-  → FMP stable/quote（一般美股）
-  → Finnhub fallback（FMP Premium 限制的股票）
-
-公司資訊
-  → FMP stable/profile
-  → Finnhub stock/profile2（fallback）
-
-大盤指數
-  → Finnhub（SPY / QQQ / DIA）
-```
-
-### 快取策略
-
-| 資料類型 | TTL | 儲存位置 |
-|---------|-----|---------|
-| 股票報價 | 1 分鐘 | TanStack Query + SQLite |
-| 財務報表 | 24 小時 | SQLite financial_cache |
+| 資料類型 | TTL | 說明 |
+|---------|-----|------|
+| 股票報價 | 1 分鐘 | TanStack Query，頁面自動刷新 |
+| 財務報表 | 24 小時 | TanStack Query |
+| 同業比較 | 24 小時 | TanStack Query |
 | 新聞 | 30 分鐘 | TanStack Query |
-| AI 分析報告 | 永久 | SQLite analysis_reports（含 model_version）|
-
----
-
-## 資料庫 Schema
-
-```sql
-watchlist          -- 追蹤清單（symbol, name, sector, notes）
-financial_cache    -- 財報快取（symbol + report_type + period 複合唯一索引）
-stock_prices       -- 即時報價快取（symbol 唯一，UPSERT 更新）
-analysis_reports   -- AI 分析歷史（含 model_version, prompt_version）
-```
+| AI 分析報告 | 永久 | Turso DB（含 model_version、prompt_version） |
 
 ---
 
 ## 快速開始
 
+### 1. 安裝依賴
+
 ```bash
-# 1. 安裝依賴
 npm install
+```
 
-# 2. 設定環境變數
-cp .env.local.example .env.local
-# 填入以下 API Keys：
-# FMP_API_KEY        https://financialmodelingprep.com
-# FINNHUB_API_KEY    https://finnhub.io
-# ANTHROPIC_API_KEY  https://console.anthropic.com
-# ALPHA_VANTAGE_KEY  https://www.alphavantage.co（備援）
+### 2. 設定環境變數
 
-# 3. 初始化資料庫
-npm run db:push
+複製 `.env.example` 為 `.env.local` 並填入 API Key：
 
-# 4. 啟動開發伺服器
+```bash
+cp .env.example .env.local
+```
+
+```env
+# 財務數據（必填）
+FMP_API_KEY=
+
+# 新聞（必填）
+FINNHUB_API_KEY=
+
+# AI 分析（必填）
+ANTHROPIC_API_KEY=
+
+# 生產資料庫 Turso（本地開發留空，預設使用 file:./dev.db）
+TURSO_DATABASE_URL=
+TURSO_AUTH_TOKEN=
+
+# 站台密碼保護（可選，留空則開放存取）
+SITE_PASSWORD=
+```
+
+### 3. 初始化本地資料庫
+
+```bash
+npx drizzle-kit push
+```
+
+### 4. 啟動開發伺服器
+
+```bash
 npm run dev
 ```
 
-瀏覽器開啟 `http://localhost:3000`
+開啟 [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## 開發指令
+## API Key 申請
+
+| 服務 | 免費額度 | 申請網址 |
+|------|---------|---------|
+| Financial Modeling Prep | 250 次/天 | [financialmodelingprep.com](https://financialmodelingprep.com/) |
+| Finnhub | 60 次/分鐘 | [finnhub.io](https://finnhub.io/) |
+| Anthropic Claude | 按用量付費 | [console.anthropic.com](https://console.anthropic.com/) |
+| Turso | 500 MB 免費 | [turso.tech](https://turso.tech/) |
+
+---
+
+## 部署到 Zeabur
+
+1. Fork 此 repo 並在 [Zeabur](https://zeabur.com/) 連結 GitHub repo
+2. 在 Zeabur 後台設定環境變數（同上方 `.env.local` 內容）
+3. 建立 Turso 資料庫：
 
 ```bash
-npm run dev          # 啟動開發伺服器（Turbopack）
-npm run build        # 生產環境建置
-npm run lint         # ESLint 檢查
-npm run format       # Prettier 格式化
-npm run db:push      # 同步 schema 至資料庫
-npm run db:generate  # 產生 migration 檔案
-npm run db:studio    # 開啟 Drizzle Studio（資料庫 GUI）
+turso db create us-stock-analyzer
+turso db show us-stock-analyzer --url     # → TURSO_DATABASE_URL
+turso db tokens create us-stock-analyzer  # → TURSO_AUTH_TOKEN
+```
+
+4. 推送 `main` 分支後 Zeabur 自動建置，`zbpack.json` 設定啟動時自動執行 schema 同步：
+
+```json
+{
+  "build_command": "npm run build",
+  "start_command": "npx drizzle-kit push && npm start"
+}
+```
+
+---
+
+## 專案結構
+
+```
+src/
+├── app/
+│   ├── page.tsx                  # Dashboard 首頁
+│   ├── stock/[symbol]/           # 個股分析頁
+│   └── api/
+│       ├── stocks/               # 追蹤清單 CRUD
+│       ├── financials/[symbol]/  # 三大財報
+│       ├── peers/[symbol]/       # 同業比較
+│       ├── news/[symbol]/        # 公司新聞
+│       ├── profile/[symbol]/     # 公司基本資訊
+│       └── analysis/[symbol]/    # AI 分析（Streaming）
+├── components/
+│   ├── dashboard/                # Navbar、WatchlistTable、MarketOverview、MetricsPanel
+│   ├── stock/                    # StockHeader、三大報表 Tab、PeerComparison、ScoreCard
+│   ├── charts/                   # TradingView Widget（dynamic import，停用 SSR）
+│   └── analysis/                 # WallStreetAnalysis、NewsPanel
+├── lib/
+│   ├── db/                       # Drizzle schema + @libsql/client 連線
+│   ├── api/                      # FMP、Finnhub、Alpha Vantage 封裝
+│   ├── scoring.ts                # 行業基準加權評分模組
+│   └── validations.ts            # Symbol 格式驗證（支援 AAPL、BRK.B、SPY）
+├── config/
+│   └── analyst-prompt.ts         # Claude System Prompt + User Prompt 模板
+└── middleware.ts                  # Rate Limiting + Basic Auth
 ```
 
 ---
 
 ## 安全性
 
-- 所有 API Key 僅存於 `.env.local`，**不加 `NEXT_PUBLIC_` 前綴**，只在 Server Side 存取
-- `.env.local` 已加入 `.gitignore`，僅 `.env.local.example`（空值）可 commit
-- 所有 API Route 接收 `symbol` 參數前皆呼叫 `validateSymbol()` 驗證格式（`/^[A-Z]{1,5}$/`）
-- Drizzle ORM 參數化查詢，無手動拼接 SQL
+- 所有 API Key 僅在 server side 存取，不使用 `NEXT_PUBLIC_` 前綴
+- Rate Limiting：一般 API 60 次/分鐘，AI 分析 POST 3 次/分鐘（in-memory per-IP）
+- HTTP Security Headers：CSP、HSTS、X-Frame-Options、X-Content-Type-Options
+- 可選 Basic Auth（設定 `SITE_PASSWORD` 環境變數）
+- Drizzle ORM 參數化查詢，防止 SQL Injection
+- Symbol 輸入驗證：`/^[A-Z]{1,5}(\.[A-Z]{1,2})?$/`
 
 ---
 
