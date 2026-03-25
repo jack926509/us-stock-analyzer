@@ -2,6 +2,25 @@ import axios from "axios"
 import { validateSymbol } from "@/lib/validations"
 import { getFinnhubProfile, getFinnhubQuote, getFinnhubPeers } from "@/lib/api/finnhub"
 
+// Fetch YoY revenue growth from Finnhub /stock/metric (no FMP daily limit)
+async function getFinnhubRevenueGrowth(symbol: string): Promise<number | null> {
+  try {
+    const key = process.env.FINNHUB_API_KEY
+    if (!key) return null
+    const { data } = await axios.get<{ metric: Record<string, unknown> }>(
+      `https://finnhub.io/api/v1/stock/metric`,
+      { params: { symbol, metric: "all", token: key }, timeout: 5000 }
+    )
+    const m = data?.metric
+    if (!m) return null
+    // Finnhub returns revenue growth in % (0–100); convert to decimal
+    const raw = Number(m.revenueGrowthTTMYoy ?? m.revenueGrowthQuarterlyYoy ?? m.revenueGrowth3Y ?? m.revenueGrowth5Y)
+    return isFinite(raw) && raw !== 0 ? raw / 100 : null
+  } catch {
+    return null
+  }
+}
+
 // ─── Curated industry peer map (last-resort fallback) ─────────────────────────
 const CURATED_PEERS: Record<string, string[]> = {
   // Airlines
@@ -73,7 +92,8 @@ export interface PeerData {
 
 async function fetchPeerData(symbol: string): Promise<PeerData | null> {
   try {
-    const [profileRes, metricsRes, ratiosRes] = await Promise.allSettled([
+    // Fetch FMP data + Finnhub revenue growth in parallel
+    const [profileRes, metricsRes, ratiosRes, revenueGrowth] = await Promise.allSettled([
       axios.get<Record<string, unknown>[]>(`${FMP_STABLE}/profile`, {
         params: { symbol, apikey: apiKey() },
         timeout: 8000,
@@ -86,10 +106,12 @@ async function fetchPeerData(symbol: string): Promise<PeerData | null> {
         params: { symbol, period: "annual", limit: 1, apikey: apiKey() },
         timeout: 8000,
       }),
+      getFinnhubRevenueGrowth(symbol), // Finnhub: no daily limit
     ])
 
     const profileData = profileRes.status === "fulfilled" ? profileRes.value.data : null
     const profile = Array.isArray(profileData) ? profileData[0] : null
+    const revGrowth = revenueGrowth.status === "fulfilled" ? revenueGrowth.value : null
 
     // FMP unavailable — Finnhub fallback for basic data
     if (!profile) {
@@ -98,19 +120,24 @@ async function fetchPeerData(symbol: string): Promise<PeerData | null> {
         getFinnhubQuote(symbol).catch(() => null),
       ])
       if (!fhProf && !fhQuote) return null
+
+      // Use Finnhub /stock/metric for financial ratios in fallback path
+      const { getFinnhubKeyMetrics } = await import("@/lib/api/finnhub")
+      const { keyMetrics: fhKm, ratios: fhRt } = await getFinnhubKeyMetrics(symbol).catch(() => ({ keyMetrics: null, ratios: null }))
+
       return {
         symbol,
         companyName: fhProf?.name ?? symbol,
         marketCap: fhQuote?.marketCap ?? 0,
         price: fhQuote?.price ?? 0,
         sector: fhProf?.finnhubIndustry ?? "",
-        peRatio: fhQuote?.pe ?? null,
-        pbRatio: null,
-        psRatio: null,
-        evToEbitda: null,
-        roe: null,
-        grossMargin: null,
-        revenueGrowth: null,
+        peRatio: fhQuote?.pe ?? fhKm?.peRatio ?? null,
+        pbRatio: fhKm?.pbRatio ?? null,
+        psRatio: fhKm?.psRatio ?? null,
+        evToEbitda: fhKm?.evToEbitda ?? null,
+        roe: fhKm?.roe ?? fhRt?.returnOnEquity ?? null,
+        grossMargin: fhRt?.grossProfitMargin ?? null,
+        revenueGrowth: revGrowth,
         isTarget: false,
       }
     }
@@ -131,14 +158,14 @@ async function fetchPeerData(symbol: string): Promise<PeerData | null> {
       marketCap: Number(profile.marketCap ?? 0),
       price: Number(profile.price ?? 0),
       sector: String(profile.sector ?? ""),
-      // stable API field names (no TTM suffix)
-      peRatio: num(km?.peRatio) ?? num(rt?.priceToEarningsRatio),
-      pbRatio: num(km?.pbRatio) ?? num(rt?.priceToBookRatioTTM),
-      psRatio: num(km?.psRatio) ?? num(rt?.priceToSalesRatioTTM),
-      evToEbitda: num(km?.evToEbitda) ?? num(rt?.enterpriseValueMultiple),
-      roe: num(km?.roe) ?? num(rt?.returnOnEquity),
-      grossMargin: num(rt?.grossProfitMargin),
-      revenueGrowth: null, // not available in stable annual endpoints
+      // Try multiple field name variants (stable API vs v3 naming differ)
+      peRatio: num(km?.peRatio) ?? num(rt?.priceToEarningsRatio) ?? num(rt?.peRatio),
+      pbRatio: num(km?.pbRatio) ?? num(km?.priceToBookRatio) ?? num(rt?.priceToBookRatioTTM) ?? num(rt?.priceToBookRatio),
+      psRatio: num(km?.psRatio) ?? num(km?.priceToSalesRatio) ?? num(rt?.priceToSalesRatioTTM) ?? num(rt?.priceToSalesRatio),
+      evToEbitda: num(km?.evToEbitda) ?? num(km?.enterpriseValueOverEBITDA) ?? num(rt?.enterpriseValueMultiple),
+      roe: num(km?.roe) ?? num(km?.returnOnEquity) ?? num(rt?.returnOnEquity),
+      grossMargin: num(rt?.grossProfitMargin) ?? num(km?.grossProfitMargin),
+      revenueGrowth: revGrowth, // from Finnhub TTM YoY
       isTarget: false,
     }
   } catch {
