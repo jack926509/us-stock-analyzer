@@ -33,7 +33,7 @@ function checkBasicAuth(req: NextRequest): boolean {
   return pass === password
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
   const { pathname } = req.nextUrl

@@ -1,4 +1,4 @@
 {
   "build_command": "npm run build",
-  "start_command": "npx drizzle-kit push && npm start"
+  "start_command": "npx drizzle-kit push || true && npm start"
 }
