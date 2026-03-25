@@ -50,6 +50,34 @@ const COLUMNS: ColDef[] = [
   { key: "revenueGrowth",label: "營收成長",     format: fmtPct,                  higherBetter: true },
 ]
 
+// Returns 1-based rank for each peer in a column (null = no data)
+// Positive values always rank before negatives (e.g. negative P/E = losing money = worst)
+function getRankings(peers: PeerData[], col: ColDef): (number | null)[] {
+  const vals = peers.map((p) => p[col.key] as number | null)
+
+  const positives = vals
+    .map((v, i) => ({ v: v as number, i }))
+    .filter(({ v }) => v != null && !isNaN(v) && v > 0)
+  const negatives = vals
+    .map((v, i) => ({ v: v as number, i }))
+    .filter(({ v }) => v != null && !isNaN(v) && v < 0)
+
+  // Sort: best performance first
+  if (col.higherBetter) {
+    positives.sort((a, b) => b.v - a.v) // highest positive = rank 1
+    negatives.sort((a, b) => b.v - a.v) // least negative = better among negatives
+  } else {
+    positives.sort((a, b) => a.v - b.v) // lowest positive = rank 1
+    negatives.sort((a, b) => a.v - b.v) // more negative = worse (rank last)
+  }
+
+  const ranks: (number | null)[] = new Array(vals.length).fill(null)
+  let rank = 1
+  for (const { i } of positives) ranks[i] = rank++
+  for (const { i } of negatives) ranks[i] = rank++
+  return ranks
+}
+
 // Normalize a column's values to 0-100 for radar chart
 function normalizeForRadar(peers: PeerData[], col: ColDef): number[] {
   const vals = peers.map((p) => p[col.key] as number | null)
@@ -65,19 +93,14 @@ function normalizeForRadar(peers: PeerData[], col: ColDef): number[] {
   })
 }
 
-// Find best/worst indices in a column (among non-null values)
+// Derive best/worst from rankings so negative values never count as "best"
 function getBestWorst(peers: PeerData[], col: ColDef): { bestIdx: number; worstIdx: number } {
-  const vals = peers.map((p) => p[col.key] as number | null)
-  let bestIdx = -1
-  let worstIdx = -1
-  let bestVal = col.higherBetter ? -Infinity : Infinity
-  let worstVal = col.higherBetter ? Infinity : -Infinity
-
-  vals.forEach((v, i) => {
-    if (v == null || isNaN(v) || v === 0) return
-    if (col.higherBetter ? v > bestVal : v < bestVal) { bestVal = v; bestIdx = i }
-    if (col.higherBetter ? v < worstVal : v > worstVal) { worstVal = v; worstIdx = i }
-  })
+  const rankings = getRankings(peers, col)
+  const validRanks = rankings.filter((r): r is number => r !== null)
+  if (validRanks.length === 0) return { bestIdx: -1, worstIdx: -1 }
+  const total = validRanks.length
+  const bestIdx = rankings.indexOf(1)
+  const worstIdx = rankings.indexOf(total)
   return { bestIdx, worstIdx }
 }
 
@@ -225,21 +248,35 @@ export function PeerComparison({ symbol }: Props) {
                     </td>
                     {COLUMNS.map((col) => {
                       const { bestIdx, worstIdx } = getBestWorst(peers, col)
+                      const rankings = getRankings(peers, col)
+                      const rank = rankings[peerIdx]
                       const isBest = bestIdx === peerIdx
                       const isWorst = worstIdx === peerIdx && peers.length > 1
                       const val = peer[col.key] as number | null
                       return (
                         <td key={col.key} className="px-3 py-2.5 text-right">
-                          <span
-                            className={cn(
-                              "rounded px-1.5 py-0.5",
-                              isBest && "bg-emerald-500/15 text-emerald-700 font-semibold",
-                              isWorst && !isBest && "bg-red-500/10 text-red-600",
-                              !isBest && !isWorst && "text-stone-500"
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5",
+                                isBest && "bg-emerald-500/15 text-emerald-700 font-semibold",
+                                isWorst && !isBest && "bg-red-500/10 text-red-600",
+                                !isBest && !isWorst && "text-stone-500"
+                              )}
+                            >
+                              {col.format(val)}
+                            </span>
+                            {rank != null && (
+                              <span className={cn(
+                                "text-[9px] font-semibold tabular-nums",
+                                rank === 1 && "text-emerald-600",
+                                rank === rankings.filter(r => r !== null).length && peers.length > 1 && "text-red-400",
+                                rank !== 1 && rank !== rankings.filter(r => r !== null).length && "text-stone-400"
+                              )}>
+                                #{rank}
+                              </span>
                             )}
-                          >
-                            {col.format(val)}
-                          </span>
+                          </div>
                         </td>
                       )
                     })}
@@ -250,7 +287,7 @@ export function PeerComparison({ symbol }: Props) {
           </table>
         </div>
         <p className="mt-2 text-[10px] text-stone-500">
-          綠色 = 同業最優 · 紅色 = 同業最差（依各指標方向判斷）
+          綠色 = 同業最優 · 紅色 = 同業最差 · #N = 各指標排名（負值自動排後）
         </p>
       </div>
     </div>
