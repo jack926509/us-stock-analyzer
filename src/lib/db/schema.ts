@@ -55,8 +55,22 @@ export const analysisReports = sqliteTable("analysis_reports", {
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 })
 
+export const multiPersonaReports = sqliteTable("multi_persona_reports", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  symbol: text("symbol").notNull(),
+  personaIds: text("persona_ids").notNull(),          // JSON: ["buffett","cathie_wood"]
+  personaResults: text("persona_results").notNull(),  // JSON: PersonaAnalysisResult[]
+  synthesis: text("synthesis").notNull(),             // JSON: MultiPersonaSynthesis
+  divergenceScore: real("divergence_score"),
+  finalRecommendation: text("final_recommendation"),
+  modelVersion: text("model_version").notNull(),
+  promptVersion: text("prompt_version").notNull(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+})
+
 export type Watchlist = typeof watchlist.$inferSelect
 export type NewWatchlist = typeof watchlist.$inferInsert
 export type FinancialCache = typeof financialCache.$inferSelect
 export type StockPrices = typeof stockPrices.$inferSelect
 export type AnalysisReport = typeof analysisReports.$inferSelect
+export type MultiPersonaReportRow = typeof multiPersonaReports.$inferSelect

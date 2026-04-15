@@ -12,6 +12,7 @@ import { KeyMetricsTab } from "./KeyMetricsTab"
 import { TradingViewWidget } from "@/components/charts/TradingViewWidget.dynamic"
 import { TradingViewTechAnalysis } from "@/components/charts/TradingViewTechAnalysis.dynamic"
 import { WallStreetAnalysis } from "@/components/analysis/WallStreetAnalysis"
+import { MultiPersonaAnalysis } from "@/components/analysis/MultiPersonaAnalysis"
 import { NewsPanel } from "@/components/analysis/NewsPanel"
 import { PeerComparison } from "./PeerComparison"
 import { ScoreCard } from "./ScoreCard"
@@ -123,6 +124,7 @@ export function StockDetailView({ symbol }: Props) {
               <TabsTrigger value="metrics" className="text-xs">核心指標</TabsTrigger>
               <TabsTrigger value="peers" className="text-xs">同業比較</TabsTrigger>
               <TabsTrigger value="ai" className="text-xs">AI 分析</TabsTrigger>
+              <TabsTrigger value="multi-persona" className="text-xs">多師論道</TabsTrigger>
             </TabsList>
 
             {/* Period toggle */}
@@ -241,6 +243,12 @@ export function StockDetailView({ symbol }: Props) {
                 </ErrorBoundary>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="multi-persona">
+            <ErrorBoundary>
+              <MultiPersonaAnalysis symbol={symbol} price={profile?.price} />
+            </ErrorBoundary>
           </TabsContent>
         </Tabs>
       </main>
