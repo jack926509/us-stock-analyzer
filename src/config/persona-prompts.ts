@@ -272,16 +272,11 @@ export function parseSynthesis(
   const finalRecMatch = /## FINAL_RECOMMENDATION:\s*(.+)/i.exec(content)
   const divergenceMatch = /## DIVERGENCE_SCORE:\s*(\d+)/i.exec(content)
 
-  const stances: Partial<Record<PersonaId, "Bullish" | "Bearish" | "Neutral">> = {}
-  for (const r of results) {
-    if (r.stance) stances[r.personaId] = r.stance
-  }
-
-  const divergenceScore = divergenceMatch ? parseInt(divergenceMatch[1]) : computeDivergence(results)
+  const divergenceScore = divergenceMatch
+    ? parseInt(divergenceMatch[1])
+    : computeDivergence(results)
 
   return {
-    summary: content,
-    stances,
     divergenceScore: isNaN(divergenceScore) ? 50 : divergenceScore,
     finalRecommendation: finalRecMatch?.[1]?.trim() ?? "Hold",
     keyDisagreements: extractDisagreements(results),

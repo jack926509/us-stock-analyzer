@@ -1,9 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk"
 import { db } from "@/lib/db"
 import { multiPersonaReports } from "@/lib/db/schema"
 import { validateSymbol } from "@/lib/validations"
 import { eq, desc, and } from "drizzle-orm"
 import { buildAnalysisContext } from "@/lib/analysis-context"
+import { anthropic } from "@/lib/anthropic"
 import {
   PERSONA_CONFIGS,
   PERSONA_PROMPT_VERSION,
@@ -18,8 +18,6 @@ import type {
   PersonaAnalysisResult,
   PersonaStreamEvent,
 } from "@/types/personas"
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const MODEL = "claude-sonnet-4-6"
 const PM_MAX_TOKENS = 500
@@ -157,7 +155,7 @@ export async function POST(
           let fullContent = ""
 
           try {
-            const claudeStream = client.messages.stream({
+            const claudeStream = anthropic.messages.stream({
               model: MODEL,
               max_tokens: config.maxOutputTokens,
               system: config.systemPrompt,
@@ -197,7 +195,7 @@ export async function POST(
       if (validResults.length >= 2) {
         try {
           const synthPrompt = buildSynthesisPrompt(symbol, ctx.companyName, validResults)
-          const synthStream = client.messages.stream({
+          const synthStream = anthropic.messages.stream({
             model: MODEL,
             max_tokens: PM_MAX_TOKENS,
             system: PORTFOLIO_MANAGER_SYSTEM_PROMPT,

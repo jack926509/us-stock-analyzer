@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk"
 import { db } from "@/lib/db"
 import { analysisReports } from "@/lib/db/schema"
 import { validateSymbol } from "@/lib/validations"
@@ -9,8 +8,7 @@ import {
 } from "@/config/analyst-prompt"
 import { eq, desc, and } from "drizzle-orm"
 import { buildAnalysisContext } from "@/lib/analysis-context"
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { anthropic } from "@/lib/anthropic"
 
 // ─── Parsers for rating and target price ─────────────────────────────────────
 
@@ -133,7 +131,7 @@ export async function POST(
     async start(controller) {
       const encoder = new TextEncoder()
       try {
-        const claudeStream = client.messages.stream({
+        const claudeStream = anthropic.messages.stream({
           model: "claude-sonnet-4-6",
           max_tokens: 4096,
           system: ANALYST_SYSTEM_PROMPT,

@@ -9,7 +9,6 @@ interface PersonaCardState {
   content: string
   isDone: boolean
   result: PersonaAnalysisResult | null
-  hasError?: boolean
 }
 
 interface Props {
@@ -66,7 +65,6 @@ export function PersonaCard({ config, state, currentPrice }: Props) {
         ACCENT_BORDER[config.accentColor] ?? "border-l-stone-500"
       )}
     >
-      {/* Header */}
       <div className="flex items-start gap-3 border-b border-black/[0.06] bg-black/[0.015] px-4 py-3">
         <div
           className={cn(
@@ -98,7 +96,6 @@ export function PersonaCard({ config, state, currentPrice }: Props) {
         )}
       </div>
 
-      {/* Confidence bar */}
       {result?.confidence !== null && result?.confidence !== undefined && (
         <div className="border-b border-black/[0.04] px-4 py-2">
           <div className="mb-1 flex items-center justify-between text-[11px] text-stone-600">
@@ -117,7 +114,6 @@ export function PersonaCard({ config, state, currentPrice }: Props) {
         </div>
       )}
 
-      {/* Target price */}
       {result?.targetPriceLow != null && result?.targetPriceHigh != null && (
         <div className="border-b border-black/[0.04] px-4 py-2 text-[11px] text-stone-600">
           <div className="flex items-center justify-between">
@@ -143,7 +139,6 @@ export function PersonaCard({ config, state, currentPrice }: Props) {
         </div>
       )}
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-3 text-sm">
         {!content && isStreaming && (
           <div className="flex items-center gap-2 text-stone-500">

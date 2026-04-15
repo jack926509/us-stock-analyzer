@@ -1,11 +1,14 @@
 "use client"
 
+import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { PERSONA_CONFIGS } from "@/config/persona-prompts"
 import type { PersonaId } from "@/types/personas"
 import type { MultiPersonaReportRow } from "@/lib/db/schema"
+
+type ParsedReport = MultiPersonaReportRow & { personaIdList: PersonaId[] }
 
 interface Props {
   symbol: string
@@ -36,11 +39,24 @@ export function MultiPersonaHistory({ symbol }: Props) {
     staleTime: 0,
   })
 
+  const parsed = useMemo<ParsedReport[]>(() => {
+    if (!reports) return []
+    return reports.map((r) => {
+      let personaIdList: PersonaId[] = []
+      try {
+        personaIdList = JSON.parse(r.personaIds) as PersonaId[]
+      } catch {
+        /* malformed row — render with no pills */
+      }
+      return { ...r, personaIdList }
+    })
+  }, [reports])
+
   if (isLoading) {
     return <div className="text-xs text-stone-500">載入歷史報告...</div>
   }
 
-  if (!reports || reports.length === 0) {
+  if (parsed.length === 0) {
     return null
   }
 
@@ -48,16 +64,10 @@ export function MultiPersonaHistory({ symbol }: Props) {
     <div>
       <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-stone-500">
         <Clock size={12} />
-        歷史多師分析（{reports.length}）
+        歷史多師分析（{parsed.length}）
       </h4>
       <div className="space-y-1.5">
-        {reports.map((r) => {
-          let personaIds: PersonaId[] = []
-          try {
-            personaIds = JSON.parse(r.personaIds) as PersonaId[]
-          } catch {
-            /* ignore */
-          }
+        {parsed.map((r) => {
           const recClass = r.finalRecommendation ? REC_COLORS[r.finalRecommendation] : ""
           return (
             <div
@@ -74,7 +84,7 @@ export function MultiPersonaHistory({ symbol }: Props) {
                 <span className="text-stone-600">分歧 {r.divergenceScore}</span>
               )}
               <div className="ml-auto flex items-center gap-1">
-                {personaIds.map((id) => {
+                {r.personaIdList.map((id) => {
                   const cfg = PERSONA_CONFIGS[id]
                   if (!cfg) return null
                   return (

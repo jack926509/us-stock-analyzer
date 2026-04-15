@@ -30,8 +30,6 @@ export type PersonaStreamEvent =
   | { type: "error"; personaId?: PersonaId; message: string }
 
 export interface MultiPersonaSynthesis {
-  summary: string
-  stances: Partial<Record<PersonaId, PersonaStance>>
   divergenceScore: number
   finalRecommendation: string
   keyDisagreements: string[]

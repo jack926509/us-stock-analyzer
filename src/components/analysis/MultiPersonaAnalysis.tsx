@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Sparkles, Square, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -29,7 +29,6 @@ interface CardState {
   content: string
   isDone: boolean
   result: PersonaAnalysisResult | null
-  hasError?: boolean
 }
 
 type CardStates = Partial<Record<PersonaId, CardState>>
@@ -46,7 +45,55 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
   const abortRef = useRef<AbortController | null>(null)
   const queryClient = useQueryClient()
 
+  // Chunk buffers flushed on each animation frame — avoids a setState per SSE
+  // delta, which would otherwise fire thousands of renders during a run.
+  const personaBuffersRef = useRef<Partial<Record<PersonaId, string>>>({})
+  const synthBufferRef = useRef("")
+  const flushScheduledRef = useRef(false)
+
   const isRunning = phase === "running" || phase === "synthesis"
+
+  // Abort any in-flight stream if the user navigates away mid-run.
+  useEffect(() => {
+    return () => abortRef.current?.abort()
+  }, [])
+
+  const flushBuffers = useCallback(() => {
+    flushScheduledRef.current = false
+    const personaBuffers = personaBuffersRef.current
+    const personaIds = Object.keys(personaBuffers) as PersonaId[]
+
+    if (personaIds.length > 0) {
+      setCardStates((prev) => {
+        const next = { ...prev }
+        for (const id of personaIds) {
+          const delta = personaBuffers[id]
+          if (!delta) continue
+          const existing = next[id] ?? { content: "", isDone: false, result: null }
+          next[id] = { ...existing, content: existing.content + delta }
+        }
+        return next
+      })
+      personaBuffersRef.current = {}
+    }
+
+    if (synthBufferRef.current) {
+      const delta = synthBufferRef.current
+      synthBufferRef.current = ""
+      setSynthContent((prev) => prev + delta)
+    }
+  }, [])
+
+  const scheduleFlush = useCallback(() => {
+    if (flushScheduledRef.current) return
+    flushScheduledRef.current = true
+    if (typeof requestAnimationFrame === "undefined") {
+      // SSR / test environment fallback
+      queueMicrotask(flushBuffers)
+    } else {
+      requestAnimationFrame(flushBuffers)
+    }
+  }, [flushBuffers])
 
   const resetState = useCallback((ids: PersonaId[]) => {
     const initial: CardStates = {}
@@ -57,7 +104,57 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
     setSynthContent("")
     setSynthesis(null)
     setErrorMsg(null)
+    personaBuffersRef.current = {}
+    synthBufferRef.current = ""
   }, [])
+
+  const handleEvent = useCallback(
+    (event: PersonaStreamEvent) => {
+      switch (event.type) {
+        case "persona_chunk": {
+          const buf = personaBuffersRef.current
+          buf[event.personaId] = (buf[event.personaId] ?? "") + event.chunk
+          scheduleFlush()
+          break
+        }
+        case "persona_done": {
+          flushBuffers()
+          setCardStates((prev) => {
+            const existing = prev[event.personaId] ?? {
+              content: "",
+              isDone: false,
+              result: null,
+            }
+            return {
+              ...prev,
+              [event.personaId]: {
+                ...existing,
+                isDone: true,
+                result: event.result,
+              },
+            }
+          })
+          break
+        }
+        case "synthesis_chunk": {
+          setPhase((p) => (p === "running" ? "synthesis" : p))
+          synthBufferRef.current += event.chunk
+          scheduleFlush()
+          break
+        }
+        case "synthesis_done": {
+          flushBuffers()
+          setSynthesis(event.synthesis)
+          break
+        }
+        case "error": {
+          setErrorMsg(event.message)
+          break
+        }
+      }
+    },
+    [flushBuffers, scheduleFlush]
+  )
 
   const handleRun = async () => {
     if (isRunning) {
@@ -84,8 +181,7 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
         return
       }
       if (!res.ok || !res.body) {
-        const msg = await res.text().catch(() => "請求失敗")
-        throw new Error(msg || "請求失敗")
+        throw new Error(await res.text().catch(() => "請求失敗"))
       }
 
       const reader = res.body.getReader()
@@ -97,7 +193,6 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
         if (done) break
         buffer += decoder.decode(value, { stream: true })
 
-        // SSE messages separated by \n\n
         const parts = buffer.split("\n\n")
         buffer = parts.pop() ?? ""
 
@@ -106,16 +201,15 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
           if (!line.startsWith("data:")) continue
           const payload = line.slice(5).trim()
           if (!payload) continue
-          let event: PersonaStreamEvent
           try {
-            event = JSON.parse(payload) as PersonaStreamEvent
+            handleEvent(JSON.parse(payload) as PersonaStreamEvent)
           } catch {
-            continue
+            /* malformed line — skip */
           }
-          handleEvent(event)
         }
       }
 
+      flushBuffers()
       setPhase("done")
       await queryClient.invalidateQueries({ queryKey: ["multi-persona-reports", symbol] })
     } catch (err: unknown) {
@@ -129,73 +223,6 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
     }
   }
 
-  const handleEvent = (event: PersonaStreamEvent) => {
-    switch (event.type) {
-      case "persona_chunk": {
-        setCardStates((prev) => {
-          const existing = prev[event.personaId] ?? {
-            content: "",
-            isDone: false,
-            result: null,
-          }
-          return {
-            ...prev,
-            [event.personaId]: {
-              ...existing,
-              content: existing.content + event.chunk,
-            },
-          }
-        })
-        break
-      }
-      case "persona_done": {
-        setCardStates((prev) => {
-          const existing = prev[event.personaId] ?? {
-            content: "",
-            isDone: false,
-            result: null,
-          }
-          return {
-            ...prev,
-            [event.personaId]: {
-              ...existing,
-              isDone: true,
-              result: event.result,
-            },
-          }
-        })
-        break
-      }
-      case "synthesis_chunk": {
-        setPhase((p) => (p === "running" ? "synthesis" : p))
-        setSynthContent((prev) => prev + event.chunk)
-        break
-      }
-      case "synthesis_done": {
-        setSynthesis(event.synthesis)
-        break
-      }
-      case "error": {
-        if (event.personaId) {
-          setCardStates((prev) => {
-            const existing = prev[event.personaId!] ?? {
-              content: "",
-              isDone: false,
-              result: null,
-            }
-            return {
-              ...prev,
-              [event.personaId!]: { ...existing, hasError: true, isDone: true },
-            }
-          })
-        } else {
-          setErrorMsg(event.message)
-        }
-        break
-      }
-    }
-  }
-
   const doneResults = selectedPersonas
     .map((id) => cardStates[id]?.result)
     .filter((r): r is PersonaAnalysisResult => r != null)
@@ -203,7 +230,6 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
 
   return (
     <div className="space-y-4 py-2">
-      {/* Header */}
       <div className="flex items-center gap-2">
         <Users size={16} className="text-stone-600" />
         <h3 className="text-sm font-semibold text-stone-900">多師論道</h3>
@@ -212,7 +238,6 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
         </p>
       </div>
 
-      {/* Persona selector */}
       <div className="rounded-lg bg-[#faf6f1] p-3 ring-1 ring-black/[0.06]">
         <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">
           選擇大師（2–4 位）
@@ -225,7 +250,6 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
         />
       </div>
 
-      {/* Cost + run button */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-white px-4 py-3 ring-1 ring-black/[0.08]">
         <CostEstimate personaCount={selectedPersonas.length} />
         <button
@@ -252,14 +276,12 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
         </button>
       </div>
 
-      {/* Error banner */}
       {errorMsg && (
         <div className="rounded-lg bg-red-500/10 px-4 py-2 text-xs text-red-700 ring-1 ring-red-500/20">
           {errorMsg}
         </div>
       )}
 
-      {/* Persona cards grid */}
       {selectedPersonas.length > 0 && (phase !== "idle" || doneCount > 0) && (
         <div
           className={cn(
@@ -282,12 +304,10 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
         </div>
       )}
 
-      {/* Divergence meter (appears once ≥2 personas have produced results) */}
       {doneCount >= 2 && (
         <DivergenceMeter results={doneResults} synthesis={synthesis} />
       )}
 
-      {/* Portfolio Manager card */}
       {(phase === "synthesis" || synthContent || synthesis) && (
         <PortfolioManagerCard
           content={synthContent}
@@ -296,7 +316,6 @@ export function MultiPersonaAnalysis({ symbol, price }: Props) {
         />
       )}
 
-      {/* History */}
       <div className="pt-2">
         <MultiPersonaHistory symbol={symbol} />
       </div>
