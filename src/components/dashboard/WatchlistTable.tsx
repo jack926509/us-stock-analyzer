@@ -4,122 +4,41 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from "lucide-react"
-import Image from "next/image"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Trash2 } from "lucide-react"
+import { LogoTile } from "@/components/design/LogoTile"
+import { ChangeBadge } from "@/components/design/ChangeBadge"
+import { Sparkline } from "@/components/design/Sparkline"
+import { fmtCap, changeColor, makeSpark } from "@/lib/format"
 import type { FmpQuote } from "@/lib/api/fmp"
 import type { Watchlist } from "@/lib/db/schema"
 
-const LOGO_SRCS = (symbol: string) => [
-  `https://financialmodelingprep.com/image-stock/${symbol}.png`,
-  `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
-]
-
-function StockLogo({ symbol }: { symbol: string }) {
-  const srcs = LOGO_SRCS(symbol)
-  const [idx, setIdx] = useState(0)
-
-  if (idx >= srcs.length) {
-    return (
-      <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-[10px] font-bold text-stone-500 ring-1 ring-black/[0.07]">
-        {symbol.slice(0, 2)}
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white ring-1 ring-black/[0.07]">
-      <Image
-        key={srcs[idx]}
-        src={srcs[idx]}
-        alt={symbol}
-        width={28}
-        height={28}
-        className="size-full object-contain"
-        onError={() => setIdx((i) => i + 1)}
-        unoptimized
-      />
-    </div>
-  )
-}
-
 type WatchlistEntry = Watchlist & { quote: FmpQuote | null }
-type SortKey = "symbol" | "price" | "changePercent" | "marketCap" | "peRatio"
-type SortDir = "asc" | "desc"
+type Tab = "all" | "gainers" | "sectors"
 
-function SortIcon({ active, dir }: { col: string; active: boolean; dir: SortDir }) {
-  if (!active) return <ArrowUpDown size={12} className="text-stone-500" />
-  return dir === "asc"
-    ? <ArrowUp size={12} className="text-[#CC785C]" />
-    : <ArrowDown size={12} className="text-[#CC785C]" />
-}
+const COLS = ["代碼", "公司名稱", "現價", "漲跌幅", "30 日走勢", "市值", "P/E", "52 週區間", ""] as const
 
-function formatMarketCap(v: number | null): string {
-  if (!v) return "—"
-  if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (v >= 1e6) return `$${(v / 1e6).toFixed(2)}M`
-  return `$${v.toFixed(0)}`
-}
-
-interface WatchlistTableProps {
+interface WatchlistSectionProps {
   data: WatchlistEntry[]
   isLoading: boolean
 }
 
-export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
+export function WatchlistTable({ data, isLoading }: WatchlistSectionProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const [sortKey, setSortKey] = useState<SortKey>("changePercent")
-  const [sortDir, setSortDir] = useState<SortDir>("desc")
+  const [tab, setTab] = useState<Tab>("all")
   const [deleting, setDeleting] = useState<string | null>(null)
 
-  function handleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
-    } else {
-      setSortKey(key)
-      setSortDir("desc")
+  const filtered = (() => {
+    if (tab === "gainers") {
+      return [...data].sort(
+        (a, b) => (b.quote?.changePercentage ?? 0) - (a.quote?.changePercentage ?? 0),
+      )
     }
-  }
-
-  const sorted = [...data].sort((a, b) => {
-    let av: number, bv: number
-    switch (sortKey) {
-      case "symbol":
-        return sortDir === "asc"
-          ? a.symbol.localeCompare(b.symbol)
-          : b.symbol.localeCompare(a.symbol)
-      case "price":
-        av = a.quote?.price ?? 0
-        bv = b.quote?.price ?? 0
-        break
-      case "changePercent":
-        av = a.quote?.changePercentage ?? 0
-        bv = b.quote?.changePercentage ?? 0
-        break
-      case "marketCap":
-        av = a.quote?.marketCap ?? 0
-        bv = b.quote?.marketCap ?? 0
-        break
-      case "peRatio":
-        av = a.quote?.pe ?? 0
-        bv = b.quote?.pe ?? 0
-        break
-      default:
-        return 0
+    if (tab === "sectors") {
+      return [...data].sort((a, b) => (a.sector ?? "").localeCompare(b.sector ?? ""))
     }
-    return sortDir === "asc" ? av - bv : bv - av
-  })
+    return data
+  })()
 
   async function handleDelete(e: React.MouseEvent, symbol: string) {
     e.stopPropagation()
@@ -136,25 +55,11 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
     }
   }
 
-  function SortableHead({ label, col }: { label: string; col: SortKey }) {
-    return (
-      <TableHead
-        className="cursor-pointer select-none text-stone-600 hover:text-stone-900"
-        onClick={() => handleSort(col)}
-      >
-        <div className="flex items-center gap-1">
-          {label}
-          <SortIcon col={col} active={sortKey === col} dir={sortDir} />
-        </div>
-      </TableHead>
-    )
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-2">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-12 animate-pulse rounded-lg bg-black/5" />
+          <div key={i} className="h-12 animate-pulse rounded-xl bg-black/[0.05]" />
         ))}
       </div>
     )
@@ -170,92 +75,128 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-black/[0.07] bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow className="border-black/[0.07] hover:bg-transparent">
-            <SortableHead label="代碼" col="symbol" />
-            <TableHead className="text-stone-600">公司名稱</TableHead>
-            <SortableHead label="現價" col="price" />
-            <SortableHead label="漲跌幅" col="changePercent" />
-            <SortableHead label="市值" col="marketCap" />
-            <SortableHead label="P/E" col="peRatio" />
-            <TableHead className="text-stone-600">52週高低</TableHead>
-            <TableHead className="text-stone-600" />
-          </TableRow>
-        </TableHeader>
-        <TableBody className="stagger-children">
-          {sorted.map((row) => {
-            const q = row.quote
-            const isUp = (q?.changePercentage ?? 0) >= 0
-            return (
-              <TableRow
-                key={row.symbol}
-                className="cursor-pointer border-black/[0.06] transition-colors hover:bg-black/[0.04]"
-                onClick={() => router.push(`/stock/${row.symbol}`)}
-              >
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <StockLogo symbol={row.symbol} />
-                    <span className="font-num font-bold text-stone-900">{row.symbol}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="max-w-[180px] truncate text-stone-600">
-                  {row.name}
-                </TableCell>
-                <TableCell className="font-num text-stone-900">
-                  {q ? `$${q.price.toFixed(2)}` : "—"}
-                </TableCell>
-                <TableCell>
-                  {q ? (
-                    <Badge
-                      variant="outline"
-                      className={`border-0 font-num text-xs ${
-                        isUp
-                          ? "bg-[#00d47e]/10 text-[#006e3f]"
-                          : "bg-[#ff4757]/10 text-[#ff4757]"
-                      }`}
+    <section>
+      <div className="mb-3 flex items-baseline justify-between">
+        <div>
+          <h2
+            className="m-0 font-serif text-xl font-semibold tracking-tight"
+          >
+            追蹤清單
+          </h2>
+          <div className="mt-0.5 text-[11px] text-stone-500">
+            {data.length} 支關注但未持倉的股票 · 60 秒自動刷新
+          </div>
+        </div>
+        <div className="flex gap-1 rounded-lg bg-black/[0.05] p-1">
+          {[
+            { id: "all" as const, label: `全部 · ${data.length}` },
+            { id: "gainers" as const, label: "漲幅" },
+            { id: "sectors" as const, label: "依產業" },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                tab === t.id
+                  ? "bg-white text-foreground shadow-sm"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-black/[0.06] bg-white">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="bg-[#FAF7F0]">
+              {COLS.map((h, i) => (
+                <th
+                  key={i}
+                  className={`px-3 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-stone-500 ${
+                    i === 0 || i === 1 ? "text-left" : "text-right"
+                  }`}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((row) => {
+              const q = row.quote
+              const pct = q?.changePercentage ?? 0
+              const color = changeColor(pct)
+              const points = makeSpark(
+                [...row.symbol].reduce((a, c) => a + c.charCodeAt(0), 0),
+                pct,
+              )
+              const range = q ? q.yearHigh - q.yearLow : 0
+              const pos = q && range > 0 ? Math.max(0, Math.min(1, (q.price - q.yearLow) / range)) : 0.5
+
+              return (
+                <tr
+                  key={row.symbol}
+                  className="cursor-pointer border-t border-black/[0.04] transition-colors hover:bg-black/[0.02]"
+                  onClick={() => router.push(`/stock/${row.symbol}`)}
+                >
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <LogoTile symbol={row.symbol} size={28} />
+                      <span className="font-num text-[13px] font-bold">{row.symbol}</span>
+                    </div>
+                  </td>
+                  <td className="max-w-[180px] truncate px-3 py-3 text-stone-600">{row.name}</td>
+                  <td className="px-3 py-3 text-right font-num font-semibold">
+                    {q ? `$${q.price.toFixed(2)}` : "—"}
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    {q ? <ChangeBadge pct={pct} size="sm" /> : <span className="text-stone-400">—</span>}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Sparkline points={points} color={color} width={80} height={24} className="ml-auto" />
+                  </td>
+                  <td className="px-3 py-3 text-right font-num text-stone-600">
+                    {fmtCap(q?.marketCap ?? null)}
+                  </td>
+                  <td className="px-3 py-3 text-right font-num text-stone-600">
+                    {q?.pe ? q.pe.toFixed(1) : "—"}
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    {q && range > 0 ? (
+                      <>
+                        <div className="relative ml-auto h-1 w-[90px] rounded bg-black/[0.07]">
+                          <div
+                            className="absolute -top-[3px] h-[10px] w-0.5 rounded-sm bg-[#CC785C]"
+                            style={{ left: `${pos * 100}%` }}
+                          />
+                        </div>
+                        <div className="mt-0.5 font-num text-[9px] text-stone-500">
+                          ${q.yearLow.toFixed(0)} – ${q.yearHigh.toFixed(0)}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-stone-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    <button
+                      onClick={(e) => handleDelete(e, row.symbol)}
+                      disabled={deleting === row.symbol}
+                      className="text-stone-400 transition-colors hover:text-[#c62828]"
+                      title="移除"
                     >
-                      {isUp ? "+" : ""}
-                      {q.changePercentage.toFixed(2)}%
-                    </Badge>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell className="font-num text-stone-600">
-                  {formatMarketCap(q?.marketCap ?? null)}
-                </TableCell>
-                <TableCell className="font-num text-stone-600">
-                  {q?.pe ? q.pe.toFixed(1) : "—"}
-                </TableCell>
-                <TableCell className="font-num text-xs text-stone-600">
-                  {q && q.yearHigh > 0 ? (
-                    <span>
-                      <span className="text-[#006e3f]">${q.yearHigh.toFixed(2)}</span>
-                      {" / "}
-                      <span className="text-[#ff4757]">${q.yearLow.toFixed(2)}</span>
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={deleting === row.symbol}
-                    onClick={(e) => handleDelete(e, row.symbol)}
-                    className="h-7 px-2 text-stone-500 hover:bg-[#ff4757]/10 hover:text-[#ff4757]"
-                  >
-                    <Trash2 size={13} />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
-    </div>
+                      <Trash2 size={13} />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
 }

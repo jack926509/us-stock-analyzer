@@ -2,11 +2,13 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Navbar } from "./Navbar"
-import { MarketOverview } from "./MarketOverview"
+import { IndicesStrip } from "./IndicesStrip"
+import { PortfolioHero } from "./PortfolioHero"
+import { HoldingsTable } from "./HoldingsTable"
+import { SidePanel } from "./SidePanel"
 import { WatchlistTable } from "./WatchlistTable"
-import { MetricsPanel } from "./MetricsPanel"
-import { AlertBanner } from "./AlertBanner"
-import { PortfolioPanel } from "./PortfolioPanel"
+import { SectorBreakdown } from "./SectorBreakdown"
+import { NewsRail } from "./NewsRail"
 import type { FmpQuote } from "@/lib/api/fmp"
 import type { Watchlist } from "@/lib/db/schema"
 
@@ -28,53 +30,28 @@ export function Dashboard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <Navbar onRefresh={handleRefresh} isRefreshing={isFetching} />
 
-      <main className="mx-auto w-full max-w-screen-2xl flex-1 px-6 py-6">
-        {/* 大盤指數 */}
-        <MarketOverview />
+      <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 pb-12 pt-5 sm:px-8">
+        <IndicesStrip />
 
-        {/* 預警 Banner */}
-        <AlertBanner data={data} />
-
-        {/* 我的持股 — localStorage 追蹤未實現損益 */}
         <div className="mt-6">
-          <PortfolioPanel />
+          <PortfolioHero />
         </div>
 
-        {/* 主內容：追蹤清單 + 側邊面板 */}
-        <div className="mt-6 flex gap-6">
-          {/* 追蹤清單（主區域） */}
-          <div className="flex-1 min-w-0">
-            <div className="mb-3 flex items-baseline justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-stone-900">
-                  追蹤清單
-                  {data.length > 0 && (
-                    <span className="ml-2 text-sm font-normal text-stone-500">({data.length})</span>
-                  )}
-                </h2>
-                <p className="text-xs text-stone-500">關注但未持倉的股票，每分鐘自動刷新</p>
-              </div>
-            </div>
-            <WatchlistTable data={data} isLoading={isLoading} />
-          </div>
+        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
+          <HoldingsTable />
+          <SidePanel data={data} />
+        </div>
 
-          {/* 側邊面板 — always reserve space during load to prevent layout shift */}
-          {(isLoading || data.length > 0) && (
-            <div className="w-56 shrink-0">
-              {isLoading ? (
-                <div className="flex flex-col gap-4">
-                  {[72, 160, 160].map((h, i) => (
-                    <div key={i} className="animate-pulse rounded-xl bg-black/5" style={{ height: h }} />
-                  ))}
-                </div>
-              ) : (
-                <MetricsPanel data={data} />
-              )}
-            </div>
-          )}
+        <div className="mt-8">
+          <WatchlistTable data={data} isLoading={isLoading} />
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_380px]">
+          <SectorBreakdown data={data} />
+          <NewsRail />
         </div>
       </main>
     </div>
