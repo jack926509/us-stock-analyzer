@@ -8,13 +8,52 @@ export interface Holding {
 }
 
 const KEY = "portfolio_v1"
+const SERVER_SNAPSHOT = "[]"
 
-export function getHoldings(): Holding[] {
-  if (typeof window === "undefined") return []
+const listeners = new Set<() => void>()
+let cachedSnapshot = SERVER_SNAPSHOT
+let cacheValid = false
+
+function readRaw(): string {
+  if (typeof window === "undefined") return SERVER_SNAPSHOT
+  return window.localStorage.getItem(KEY) ?? SERVER_SNAPSHOT
+}
+
+export function getSnapshot(): string {
+  if (typeof window === "undefined") return SERVER_SNAPSHOT
+  if (!cacheValid) {
+    cachedSnapshot = readRaw()
+    cacheValid = true
+  }
+  return cachedSnapshot
+}
+
+export function getServerSnapshot(): string {
+  return SERVER_SNAPSHOT
+}
+
+export function subscribe(callback: () => void): () => void {
+  listeners.add(callback)
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === KEY) {
+      cacheValid = false
+      listeners.forEach((cb) => cb())
+    }
+  }
+  if (typeof window !== "undefined") {
+    window.addEventListener("storage", onStorage)
+  }
+  return () => {
+    listeners.delete(callback)
+    if (typeof window !== "undefined") {
+      window.removeEventListener("storage", onStorage)
+    }
+  }
+}
+
+export function parseHoldings(snapshot: string): Holding[] {
   try {
-    const raw = localStorage.getItem(KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
+    const parsed = JSON.parse(snapshot)
     if (!Array.isArray(parsed)) return []
     return parsed.filter(
       (h): h is Holding =>
@@ -25,7 +64,14 @@ export function getHoldings(): Holding[] {
   }
 }
 
+export function getHoldings(): Holding[] {
+  return parseHoldings(getSnapshot())
+}
+
 export function setHoldings(list: Holding[]): void {
   if (typeof window === "undefined") return
-  localStorage.setItem(KEY, JSON.stringify(list))
+  cachedSnapshot = JSON.stringify(list)
+  cacheValid = true
+  window.localStorage.setItem(KEY, cachedSnapshot)
+  listeners.forEach((cb) => cb())
 }

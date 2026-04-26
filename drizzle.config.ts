@@ -1,7 +1,5 @@
 import type { Config } from "drizzle-kit"
 
-const isTurso = Boolean(process.env.TURSO_DATABASE_URL)
-
 export default {
   schema: "./src/lib/db/schema.ts",
   out: "./drizzle",

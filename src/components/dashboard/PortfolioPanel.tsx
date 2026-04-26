@@ -1,11 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useMemo, useState, useSyncExternalStore } from "react"
 import { useQueries } from "@tanstack/react-query"
 import Link from "next/link"
 import { Plus, Trash2, TrendingUp, TrendingDown } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getHoldings, setHoldings, type Holding } from "@/lib/portfolio"
+import {
+  getServerSnapshot,
+  getSnapshot,
+  parseHoldings,
+  setHoldings,
+  subscribe,
+  type Holding,
+} from "@/lib/portfolio"
 
 interface ProfileResponse {
   symbol: string
@@ -18,19 +25,9 @@ function fmtMoney(v: number, digits = 0): string {
 }
 
 export function PortfolioPanel() {
-  const [holdings, setHoldingsState] = useState<Holding[]>([])
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  const holdings = useMemo(() => parseHoldings(snapshot), [snapshot])
   const [showAdd, setShowAdd] = useState(false)
-  const [hydrated, setHydrated] = useState(false)
-
-  useEffect(() => {
-    setHoldingsState(getHoldings())
-    setHydrated(true)
-  }, [])
-
-  function persist(next: Holding[]) {
-    setHoldingsState(next)
-    setHoldings(next)
-  }
 
   const queries = useQueries({
     queries: holdings.map((h) => ({
@@ -53,20 +50,18 @@ export function PortfolioPanel() {
     const shares = Number(fd.get("shares") || 0)
     const costBasis = Number(fd.get("costBasis") || 0)
     if (!symbol || shares <= 0 || costBasis <= 0) return
-    const next = [
+    const next: Holding[] = [
       ...holdings.filter((h) => h.symbol !== symbol),
       { symbol, shares, costBasis, addedAt: new Date().toISOString() },
     ]
-    persist(next)
+    setHoldings(next)
     form.reset()
     setShowAdd(false)
   }
 
   function handleRemove(symbol: string) {
-    persist(holdings.filter((h) => h.symbol !== symbol))
+    setHoldings(holdings.filter((h) => h.symbol !== symbol))
   }
-
-  if (!hydrated) return null
 
   let totalMarketValue = 0
   let totalCost = 0
