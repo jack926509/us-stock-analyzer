@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { ArrowLeft, ExternalLink } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { LogoTile } from "@/components/design/LogoTile"
+import { ChangeBadge } from "@/components/design/ChangeBadge"
+import { fmtCap, changeColor } from "@/lib/format"
 import type { FmpProfile } from "@/lib/api/fmp"
 
 interface StockHeaderProps {
@@ -15,159 +15,99 @@ interface StockHeaderProps {
   change?: number
 }
 
-function fmt(n: number, decimals = 2) {
-  return n.toFixed(decimals)
-}
-
-function fmtMarketCap(n: number) {
-  if (n >= 1e12) return (n / 1e12).toFixed(2) + "T"
-  if (n >= 1e9) return (n / 1e9).toFixed(2) + "B"
-  if (n >= 1e6) return (n / 1e6).toFixed(2) + "M"
-  return n.toFixed(0)
-}
-
-function CompanyLogo({ srcs, name, symbol }: { srcs: string[]; name: string; symbol: string }) {
-  const [idx, setIdx] = useState(0)
-  if (idx >= srcs.length) {
-    return (
-      <div className="flex size-full items-center justify-center rounded-lg bg-black/[0.08] text-sm font-bold text-stone-500">
-        {symbol.slice(0, 2)}
-      </div>
-    )
-  }
-  return (
-    <Image
-      key={srcs[idx]}
-      src={srcs[idx]}
-      alt={name}
-      width={48}
-      height={48}
-      className="size-full object-contain"
-      unoptimized
-      onError={() => setIdx((i) => i + 1)}
-    />
-  )
-}
-
-function buildLogoSrcs(symbol: string, image?: string, website?: string): string[] {
-  const srcs: string[] = []
-  if (image) srcs.push(image)
-  if (website) {
-    try {
-      srcs.push(`https://logo.clearbit.com/${new URL(website).hostname}`)
-    } catch { /* invalid URL */ }
-  }
-  srcs.push(`https://financialmodelingprep.com/image-stock/${symbol}.png`)
-  return srcs
-}
-
 export function StockHeader({ profile, symbol, price, changePercentage, change }: StockHeaderProps) {
   const displayPrice = price ?? profile?.price ?? 0
   const displayChange = change ?? profile?.change ?? 0
   const displayChangePct = changePercentage ?? profile?.changePercentage ?? 0
-  const isPositive = displayChangePct >= 0
+  const color = changeColor(displayChangePct)
 
   return (
-    <div className="border-b border-black/[0.07] bg-secondary px-6 py-5">
-      <div className="mx-auto max-w-screen-2xl">
-        {/* Back link */}
+    <div className="border-b border-black/[0.07] bg-secondary px-4 py-5 sm:px-8">
+      <div className="mx-auto max-w-[1360px]">
         <Link
           href="/"
-          className="mb-3 inline-flex items-center gap-1.5 text-xs text-stone-600 hover:text-stone-600 transition-colors"
+          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft size={12} />
           返回追蹤清單
         </Link>
 
-        <div className="flex flex-wrap items-start gap-4">
-          {/* Logo — fall back to image-stock URL, then initials */}
-          <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-black/5">
-            <CompanyLogo
-              srcs={buildLogoSrcs(symbol, profile?.image, profile?.website)}
-              name={profile?.companyName ?? symbol}
-              symbol={symbol}
-            />
-          </div>
+        <div className="mt-3 flex flex-wrap items-start gap-4 lg:flex-nowrap lg:gap-[18px]">
+          <LogoTile symbol={symbol} size={56} />
 
-          {/* Name + symbol */}
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1
+                className="m-0 font-serif text-2xl font-semibold tracking-tight sm:text-[28px]"
+                style={{ letterSpacing: "-0.02em" }}
+              >
                 {profile?.companyName ?? symbol}
               </h1>
-              <span className="rounded bg-black/[0.08] px-1.5 py-0.5 text-xs font-mono font-medium text-stone-500">
+              <span className="rounded bg-black/[0.08] px-2 py-0.5 font-mono text-[11px] text-stone-600">
                 {profile?.symbol ?? symbol}
               </span>
               {profile?.exchange && (
-                <span className="text-xs text-stone-500">{profile.exchangeFullName || profile.exchange}</span>
+                <span className="text-[11px] text-muted-foreground">{profile.exchange}</span>
               )}
               {profile?.website && (
                 <a
                   href={profile.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-stone-500 hover:text-stone-500 transition-colors"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <ExternalLink size={12} />
                 </a>
               )}
             </div>
             {profile && (
-              <p className="mt-0.5 text-xs text-stone-600">
-                {[profile.sector, profile.industry].filter(Boolean).join(" · ")}
+              <p className="mt-1 text-xs text-muted-foreground">
+                {[profile.sector, profile.industry, profile.country].filter(Boolean).join(" · ")}
               </p>
             )}
           </div>
 
-          {/* Price + change */}
+          {/* Price */}
           <div className="text-right">
-            <p className="text-2xl font-bold font-num text-stone-900">
-              ${fmt(displayPrice)}
-            </p>
-            <p
-              className={cn(
-                "text-sm font-medium font-num",
-                isPositive ? "text-emerald-600" : "text-red-600"
-              )}
+            <div
+              className="font-num text-3xl font-bold tracking-tighter sm:text-[32px]"
+              style={{ letterSpacing: "-0.02em" }}
             >
-              {isPositive ? "+" : ""}
-              {fmt(displayChange)} ({isPositive ? "+" : ""}
-              {fmt(displayChangePct)}%)
-            </p>
+              ${displayPrice.toFixed(2)}
+            </div>
+            <div className="mt-0.5 flex items-center justify-end gap-2">
+              <span className="font-num text-[13px] font-semibold" style={{ color }}>
+                {displayChange >= 0 ? "+" : ""}
+                {displayChange.toFixed(2)} ({displayChangePct >= 0 ? "+" : ""}
+                {displayChangePct.toFixed(2)}%)
+              </span>
+              <ChangeBadge pct={displayChangePct} size="sm" />
+            </div>
           </div>
 
           {/* Meta stats */}
           {profile && (
-            <div className="flex flex-wrap gap-4 text-right text-xs">
+            <div className="flex w-full flex-wrap gap-5 pt-1.5 text-[11px] lg:w-auto lg:gap-[22px]">
               {profile.marketCap > 0 && (
-                <div>
-                  <p className="text-stone-500">市值</p>
-                  <p className="font-medium text-stone-600">${fmtMarketCap(profile.marketCap)}</p>
-                </div>
+                <Stat label="市值" value={fmtCap(profile.marketCap)} />
               )}
               {profile.beta !== 0 && (
-                <div>
-                  <p className="text-stone-500">Beta</p>
-                  <p className="font-medium text-stone-600">{fmt(profile.beta)}</p>
-                </div>
+                <Stat label="Beta" value={profile.beta.toFixed(2)} />
               )}
-              {profile.country && (
-                <div>
-                  <p className="text-stone-500">國家</p>
-                  <p className="font-medium text-stone-600">{profile.country}</p>
-                </div>
-              )}
+              {profile.country && <Stat label="國家" value={profile.country} />}
             </div>
           )}
         </div>
-
-        {/* Description */}
-        {profile?.description && (
-          <p className="mt-3 max-w-3xl text-xs leading-relaxed text-stone-500 line-clamp-2">
-            {profile.description}
-          </p>
-        )}
       </div>
+    </div>
+  )
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-stone-500">{label}</div>
+      <div className="mt-0.5 font-num font-semibold text-foreground">{value}</div>
     </div>
   )
 }

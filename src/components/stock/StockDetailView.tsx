@@ -1,6 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import { Navbar } from "@/components/dashboard/Navbar"
 import { StockHeader } from "./StockHeader"
 import { TradingViewWidget } from "@/components/charts/TradingViewWidget.dynamic"
 import { TradingViewTechAnalysis } from "@/components/charts/TradingViewTechAnalysis.dynamic"
@@ -65,7 +66,9 @@ export function StockDetailView({ symbol }: Props) {
   const tvSymbol = getTVSymbol(symbol, profile?.exchange ?? profile?.exchangeFullName)
 
   return (
-    <div className="animate-fade-in-up flex flex-col bg-background">
+    <div className="animate-fade-in-up flex min-h-screen flex-col bg-background text-foreground">
+      <Navbar onRefresh={() => location.reload()} isRefreshing={false} />
+
       <StockHeader
         profile={profile ?? null}
         symbol={symbol}
@@ -74,43 +77,38 @@ export function StockDetailView({ symbol }: Props) {
         change={profile?.change}
       />
 
-      {/* TradingView Chart + Technical Analysis */}
-      <div className="mx-auto w-full max-w-screen-2xl px-6 pt-5">
-        <div className="flex gap-4">
-          <div className="min-w-0 flex-1">
-            <TradingViewWidget symbol={tvSymbol} height={500} />
+      <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 pb-12 pt-5 sm:px-8">
+        {/* Chart + tech analysis */}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_320px]">
+          <div className="min-w-0">
+            <TradingViewWidget symbol={tvSymbol} height={460} />
           </div>
-          <div className="hidden w-[320px] shrink-0 xl:block">
-            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-500">
-              技術分析
+          <div>
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              技術分析 · TradingView
             </div>
-            <TradingViewTechAnalysis symbol={tvSymbol} width={320} height={490} />
+            <div className="rounded-xl border border-black/[0.06] bg-white p-4">
+              <TradingViewTechAnalysis symbol={tvSymbol} width="100%" height={420} />
+            </div>
           </div>
         </div>
-        <div className="mt-4 xl:hidden">
-          <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-500">
-            技術分析
-          </div>
-          <TradingViewTechAnalysis symbol={tvSymbol} width="100%" height={425} />
-        </div>
-      </div>
 
-      <main className="mx-auto w-full max-w-screen-2xl flex-1 space-y-10 px-6 py-8">
-        {/* 同業比較 + 綜合評分 */}
-        <section>
-          <div className="mb-4">
-            <h2 className="font-serif text-lg font-semibold text-stone-900">
-              同業比較與評分
-            </h2>
-            <p className="text-xs text-stone-500">
-              與同產業公司關鍵指標對比，自動換算 0-10 分綜合評分
-            </p>
+        {/* Peer + Score + News */}
+        <section className="mt-9">
+          <h2
+            className="m-0 font-serif text-xl font-semibold tracking-tight"
+            style={{ letterSpacing: "-0.01em" }}
+          >
+            同業比較與評分
+          </h2>
+          <div className="mb-4 mt-0.5 text-[11px] text-muted-foreground">
+            與同產業公司關鍵指標對比，自動換算 0–10 分綜合評分
           </div>
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
             <ErrorBoundary>
               <PeerComparison symbol={symbol} />
             </ErrorBoundary>
-            <div className="space-y-6">
+            <div className="flex flex-col gap-3.5">
               <ErrorBoundary>
                 <ScoreCard
                   keyMetrics={financials?.keyMetrics ?? []}
@@ -120,8 +118,8 @@ export function StockDetailView({ symbol }: Props) {
                   isLoading={financialsLoading}
                 />
               </ErrorBoundary>
-              <div>
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-500">
+              <div className="rounded-xl border border-black/[0.06] bg-white p-4">
+                <h3 className="mb-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   近期新聞
                 </h3>
                 <ErrorBoundary>
@@ -132,8 +130,8 @@ export function StockDetailView({ symbol }: Props) {
           </div>
         </section>
 
-        {/* 深度分析 — 6 位大師 + 多空辯論 + 風險辯論 + 投組整合 */}
-        <section>
+        {/* Deep analysis */}
+        <section className="mt-10">
           <ErrorBoundary>
             <DeepAnalysisClient symbol={symbol} />
           </ErrorBoundary>
