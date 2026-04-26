@@ -88,7 +88,7 @@ export function PortfolioHero() {
         <div className="flex items-baseline gap-1.5">
           <span className="text-sm text-stone-500">$</span>
           <span
-            className="font-num text-[56px] font-bold leading-none tabular-nums"
+            className="font-num text-[40px] font-bold leading-none tabular-nums sm:text-[56px]"
             style={{ letterSpacing: "-0.03em" }}
           >
             {fmtMoney(totalValue, 0)}

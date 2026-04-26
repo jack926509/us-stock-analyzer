@@ -34,6 +34,8 @@ export function Sparkline({
     <svg
       width={width}
       height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
       className={className}
       style={{ display: "block", overflow: "visible" }}
     >

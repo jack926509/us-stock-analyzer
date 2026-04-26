@@ -108,7 +108,7 @@ export function WatchlistTable({ data, isLoading }: WatchlistSectionProps) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-black/[0.06] bg-white">
+      <div className="overflow-x-auto rounded-xl border border-black/[0.06] bg-white">
         <table className="w-full border-collapse text-xs">
           <thead>
             <tr className="bg-[#FAF7F0]">

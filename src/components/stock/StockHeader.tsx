@@ -68,14 +68,14 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
           </div>
 
           {/* Price */}
-          <div className="text-right">
+          <div className="text-right lg:ml-auto">
             <div
-              className="font-num text-3xl font-bold tracking-tighter sm:text-[32px]"
+              className="font-num text-2xl font-bold tracking-tighter sm:text-3xl lg:text-[32px]"
               style={{ letterSpacing: "-0.02em" }}
             >
               ${displayPrice.toFixed(2)}
             </div>
-            <div className="mt-0.5 flex items-center justify-end gap-2">
+            <div className="mt-0.5 flex flex-wrap items-center justify-end gap-2">
               <span className="font-num text-[13px] font-semibold" style={{ color }}>
                 {displayChange >= 0 ? "+" : ""}
                 {displayChange.toFixed(2)} ({displayChangePct >= 0 ? "+" : ""}

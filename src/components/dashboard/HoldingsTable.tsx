@@ -62,6 +62,7 @@ export function HoldingsTable() {
         <span className="font-serif text-[13px] font-semibold">持股明細</span>
         <span className="text-[11px] text-muted-foreground">{holdings.length} 檔 · localStorage 儲存</span>
       </div>
+      <div className="overflow-x-auto">
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr className="bg-[#FAF7F0]">
@@ -136,6 +137,7 @@ export function HoldingsTable() {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }
