@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 設計稿 mockup（CDN React，非 production 程式碼）
+    "US stock web design/**",
   ]),
 ]);
 

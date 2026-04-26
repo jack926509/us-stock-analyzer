@@ -47,7 +47,7 @@ export function NewsRail() {
         ) : items.length === 0 ? (
           <div className="py-6 text-center text-xs text-stone-400">暫無市場新聞</div>
         ) : (
-          items.map((n, i) => {
+          items.map((n) => {
             const s = SENT[n.sentiment] ?? SENT.neutral
             return (
               <a

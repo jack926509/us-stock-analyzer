@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useSyncExternalStore } from "react"
+import { useSyncExternalStore } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { Sparkline } from "@/components/design/Sparkline"
 import { ChangeBadge } from "@/components/design/ChangeBadge"
@@ -22,7 +22,7 @@ const PERIODS = ["1D", "1W", "1M", "3M", "YTD"] as const
 
 export function PortfolioHero() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
-  const holdings = useMemo(() => parseHoldings(snapshot), [snapshot])
+  const holdings = parseHoldings(snapshot)
 
   const queries = useQueries({
     queries: holdings.map((h) => ({
@@ -50,12 +50,12 @@ export function PortfolioHero() {
   const color = up ? UP_COLOR : DOWN_COLOR
 
   // 走勢線視覺資料 — 待加上歷史持倉快照後可改真資料
-  const equity = useMemo(() => {
-    if (totalCost <= 0) return makeSpark(7, 0)
-    return makeSpark(7, up ? 1.5 : -1.5, 0.012).map(
-      (v) => totalCost + ((v - 100) / 100) * totalCost * 1.4,
-    )
-  }, [totalCost, up])
+  const equity =
+    totalCost <= 0
+      ? makeSpark(7, 0)
+      : makeSpark(7, up ? 1.5 : -1.5, 0.012).map(
+          (v) => totalCost + ((v - 100) / 100) * totalCost * 1.4,
+        )
 
   // 空狀態 — 鼓勵新增持股
   if (holdings.length === 0) {

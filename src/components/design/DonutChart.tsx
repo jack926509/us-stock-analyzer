@@ -15,15 +15,20 @@ export function DonutChart({ data, size = 160, centerLabel = "股票" }: DonutCh
   const r = size * 0.42
   const cx = size / 2
   const cy = size / 2
-  let cumulative = 0
+
+  const segments = data.reduce<
+    { d: DonutSegment; start: number; end: number }[]
+  >((acc, d) => {
+    const prevEnd = acc.length === 0 ? 0 : acc[acc.length - 1].end
+    return [...acc, { d, start: prevEnd, end: prevEnd + d.count / total }]
+  }, [])
 
   return (
     <svg width={size} height={size}>
-      {data.map((d, i) => {
-        const portion = d.count / total
-        const start = cumulative * Math.PI * 2 - Math.PI / 2
-        cumulative += portion
-        const end = cumulative * Math.PI * 2 - Math.PI / 2
+      {segments.map(({ d, start: s0, end: e0 }, i) => {
+        const portion = e0 - s0
+        const start = s0 * Math.PI * 2 - Math.PI / 2
+        const end = e0 * Math.PI * 2 - Math.PI / 2
         const x1 = cx + r * Math.cos(start)
         const y1 = cy + r * Math.sin(start)
         const x2 = cx + r * Math.cos(end)
