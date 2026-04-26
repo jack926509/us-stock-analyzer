@@ -1,6 +1,6 @@
 "use client"
 
-import { DonutChart } from "@/components/design/DonutChart"
+import { SectionHeader } from "@/components/design/SectionHeader"
 import type { FmpQuote } from "@/lib/api/fmp"
 import type { Watchlist } from "@/lib/db/schema"
 
@@ -20,36 +20,73 @@ export function SectorBreakdown({ data }: SectorBreakdownProps) {
   }
   const sectors = Array.from(sectorMap.entries())
     .sort((a, b) => b[1] - a[1])
-    .map(([name, count], i) => ({ name, count, color: SECTOR_COLORS[i % SECTOR_COLORS.length] }))
+    .map(([name, count], i) => ({
+      name,
+      count,
+      color: SECTOR_COLORS[i % SECTOR_COLORS.length],
+    }))
   const total = sectors.reduce((s, x) => s + x.count, 0)
 
+  // HHI 指數（赫芬達爾指數）— 集中度衡量
+  const hhi = total > 0 ? sectors.reduce((s, x) => s + Math.pow((x.count / total) * 100, 2), 0) : 0
+  const concentrated = hhi >= 2500
+
   return (
-    <div className="rounded-xl border border-black/[0.06] bg-white p-6">
-      <h3 className="m-0 font-serif text-base font-semibold tracking-tight">產業分佈</h3>
-      <div className="mt-0.5 text-[11px] text-stone-500">
-        追蹤清單依 GICS 分類佔比
-      </div>
-      <div className="mt-[22px] flex items-center gap-6">
-        {total > 0 ? (
-          <>
-            <DonutChart data={sectors} size={170} />
-            <div className="flex flex-1 flex-col gap-3">
-              {sectors.map((s) => (
-                <div key={s.name} className="flex items-center gap-2.5">
-                  <div className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />
-                  <span className="flex-1 text-xs text-stone-700">{s.name}</span>
-                  <span className="font-num text-xs text-stone-500">{s.count} 支</span>
-                  <span className="w-10 text-right font-num text-[11px] text-stone-500">
-                    {((s.count / total) * 100).toFixed(0)}%
+    <section className="overflow-hidden rounded-xl border border-hair bg-card">
+      <SectionHeader eyebrow="ALLOCATION · GICS" title="產業分佈" />
+      <div className="flex flex-col gap-3 px-4 py-4 sm:px-[18px]">
+        {total === 0 ? (
+          <div className="py-6 text-center text-sm text-muted-foreground">尚無資料</div>
+        ) : (
+          sectors.map((s) => {
+            const pct = (s.count / total) * 100
+            return (
+              <div key={s.name}>
+                <div className="mb-1 flex items-center justify-between text-[11px]">
+                  <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                    <span
+                      className="size-2 rounded-sm"
+                      style={{ background: s.color }}
+                    />
+                    {s.name}
+                  </span>
+                  <span className="font-mono text-muted-foreground">
+                    {s.count} · <strong className="text-foreground">{pct.toFixed(0)}%</strong>
                   </span>
                 </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="py-8 text-sm text-stone-400">尚無資料</div>
+                <div className="h-1.5 rounded-sm bg-black/[0.05]">
+                  <div
+                    className="h-full rounded-sm"
+                    style={{ width: `${pct}%`, background: s.color }}
+                  />
+                </div>
+              </div>
+            )
+          })
         )}
       </div>
-    </div>
+      {total > 0 && (
+        <div className="grid grid-cols-2 gap-2.5 border-t border-hair-soft bg-black/[0.02] px-[18px] py-3">
+          <div>
+            <div className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+              HHI 集中度
+            </div>
+            <div className="font-mono text-base font-bold tabular-nums">{Math.round(hhi)}</div>
+            <div
+              className={"font-mono text-[10px] " + (concentrated ? "text-down" : "text-up")}
+            >
+              {concentrated ? "偏集中" : "分散良好"}
+            </div>
+          </div>
+          <div>
+            <div className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+              產業數
+            </div>
+            <div className="font-mono text-base font-bold tabular-nums">{sectors.length}</div>
+            <div className="font-mono text-[10px] text-muted-foreground">非 0 計數</div>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

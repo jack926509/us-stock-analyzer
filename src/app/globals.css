@@ -9,8 +9,17 @@
   --color-foreground: var(--foreground);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-up-neon: var(--up-neon);
+  --color-down-neon: var(--down-neon);
+  --color-hair: var(--hair);
+  --color-hair-soft: var(--hair-soft);
+  --color-paper: var(--paper);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-jetbrains-mono), var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
   --font-serif: var(--font-source-serif), var(--font-noto-serif-tc), Georgia, serif;
   --font-heading: var(--font-source-serif), var(--font-noto-serif-tc), Georgia, serif;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -52,17 +61,27 @@
 }
 
 :root {
-  /* Claude Design palette (Anthropic brand)
+  /* Bloomberg Terminal × Claude — v2 米色終端機配色
      - background: 米色 #F4EFE6
-     - foreground: 深炭 #1A1A1A
-     - brand:      珊瑚橘 #CC785C */
+     - card:       米卡 #FBF8F1
+     - ink:        終端機黑 #1A1A1A
+     - brand:      Claude 珊瑚橘 #CC785C */
   --background: #F4EFE6;
   --foreground: #1A1A1A;
   --brand: #CC785C;
   --brand-foreground: #FFFFFF;
-  --card: #FFFFFF;
+  --ink: #1A1A1A;
+  --ink-foreground: #F4EFE6;
+  --paper: #FAF6EE;
+  --up: #006e3f;
+  --down: #c62828;
+  --up-neon: #00d47e;
+  --down-neon: #ff5b5b;
+  --hair: rgba(0, 0, 0, 0.08);
+  --hair-soft: rgba(0, 0, 0, 0.05);
+  --card: #FBF8F1;
   --card-foreground: #1A1A1A;
-  --popover: #FFFFFF;
+  --popover: #FBF8F1;
   --popover-foreground: #1A1A1A;
   --primary: #1A1A1A;
   --primary-foreground: #F4EFE6;
@@ -131,6 +150,33 @@
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Bloomberg-style scrolling ticker (loops the duplicated track) */
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-ticker-scroll {
+  animation: tickerScroll 60s linear infinite;
+}
+
+/* Streaming dot — pulses while AI generates */
+@keyframes dotPulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+.animate-dot-pulse {
+  animation: dotPulse 1.5s ease-in-out infinite;
+}
+
+/* Caret pulse — terminal cursor blink */
+@keyframes caretPulse {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.animate-caret-pulse {
+  animation: caretPulse 1s steps(1) infinite;
 }
 
 @keyframes count-flash {

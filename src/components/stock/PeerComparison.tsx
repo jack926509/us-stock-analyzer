@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from "recharts"
 import { LogoTile } from "@/components/design/LogoTile"
+import { SectionHeader } from "@/components/design/SectionHeader"
 import { fmtCap, UP_COLOR, DOWN_COLOR } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { PeerData } from "@/app/api/peers/[symbol]/route"
@@ -118,7 +119,7 @@ export function PeerComparison({ symbol }: Props) {
 
   if (isLoading) {
     return (
-      <div className="space-y-3 rounded-xl border border-black/[0.06] bg-white p-4">
+      <div className="space-y-3 rounded-xl border border-hair bg-card p-4">
         {[...Array(5)].map((_, i) => (
           <div key={i} className="h-10 animate-pulse rounded-lg bg-black/[0.05]" />
         ))}
@@ -128,7 +129,7 @@ export function PeerComparison({ symbol }: Props) {
 
   if (!peers.length) {
     return (
-      <div className="rounded-xl border border-black/[0.06] bg-white py-10 text-center text-sm text-muted-foreground">
+      <div className="rounded-xl border border-hair bg-card py-10 text-center text-sm text-muted-foreground">
         無同業比較資料
       </div>
     )
@@ -164,22 +165,22 @@ export function PeerComparison({ symbol }: Props) {
       {peers.length > 1 && bestIdx >= 0 && (
         <div
           className="rounded-xl border px-4 py-3"
-          style={{ borderColor: "rgba(0,212,126,0.25)", background: "rgba(0,212,126,0.08)" }}
+          style={{ borderColor: "rgba(0,110,63,0.25)", background: "rgba(0,110,63,0.06)" }}
         >
           <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
             <div>
-              <span className="text-stone-600">綜合最划算：</span>
-              <span className="font-semibold" style={{ color: UP_COLOR }}>
+              <span className="text-muted-foreground">綜合最划算：</span>
+              <span className="font-mono font-bold" style={{ color: UP_COLOR }}>
                 {peers[bestIdx].symbol}
               </span>
-              <span className="ml-1 text-stone-500">
+              <span className="ml-1 text-muted-foreground">
                 平均排名 #{avgRanks[bestIdx]!.toFixed(1)} / 共 {peers.length} 檔
               </span>
             </div>
             {targetIdx >= 0 && targetIdx !== bestIdx && overallRanks[targetIdx] != null && (
-              <div className="text-stone-600">
+              <div className="text-muted-foreground">
                 {peers[targetIdx].symbol} 排名{" "}
-                <span className="font-semibold text-foreground">#{overallRanks[targetIdx]}</span>
+                <span className="font-mono font-bold text-foreground">#{overallRanks[targetIdx]}</span>
               </div>
             )}
           </div>
@@ -188,10 +189,12 @@ export function PeerComparison({ symbol }: Props) {
 
       {/* Radar chart */}
       {peers.length > 1 && (
-        <div className="rounded-xl border border-black/[0.06] bg-white p-4">
-          <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            多維度雷達比較（歸一化 0–100）
-          </div>
+        <div className="overflow-hidden rounded-xl border border-hair bg-card">
+          <SectionHeader
+            eyebrow="PEER RADAR · NORMALIZED 0–100"
+            title="多維度雷達比較"
+          />
+          <div className="p-4">
           <ResponsiveContainer width="100%" height={280}>
             <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
               <PolarGrid stroke="rgba(0,0,0,0.08)" />
@@ -225,44 +228,46 @@ export function PeerComparison({ symbol }: Props) {
                   className="inline-block h-2 w-4 rounded-full"
                   style={{ background: RADAR_COLORS[i % RADAR_COLORS.length] }}
                 />
-                <span className={cn("font-num text-xs", p.isTarget ? "font-bold text-foreground" : "text-stone-600")}>
+                <span className={cn("font-mono text-xs", p.isTarget ? "font-bold text-foreground" : "text-muted-foreground")}>
                   {p.symbol}
                 </span>
               </div>
             ))}
           </div>
+          </div>
         </div>
       )}
 
       {/* Comparison table */}
-      <div className="overflow-hidden rounded-xl border border-black/[0.06] bg-white">
-        <div className="flex items-center justify-between border-b border-black/[0.05] px-4 py-3">
-          <span className="font-serif text-sm font-semibold">同業 {peers.length} 檔比較</span>
-          <span className="text-[10px] text-muted-foreground">FMP v4 · 自動匹配</span>
-        </div>
+      <div className="overflow-hidden rounded-xl border border-hair bg-card">
+        <SectionHeader
+          eyebrow={`PEER COMPARISON · ${peers.length} ISSUES`}
+          title="同業關鍵指標"
+          right={<span className="font-mono text-[10px] text-muted-foreground">FMP v4 · 自動匹配</span>}
+        />
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[11.5px]">
             <thead>
-              <tr className="bg-[#FAF7F0]">
-                <th className="px-3 py-2.5 text-left text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  排名
+              <tr className="bg-ink text-ink-foreground">
+                <th className="px-3 py-2.5 text-left font-mono text-[9.5px] font-bold uppercase tracking-[0.1em]">
+                  RANK
                 </th>
-                <th className="px-3 py-2.5 text-left text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  代號
+                <th className="px-3 py-2.5 text-left font-mono text-[9.5px] font-bold uppercase tracking-[0.1em]">
+                  PEER
                 </th>
-                <th className="px-3 py-2.5 text-right text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  市值
+                <th className="px-3 py-2.5 text-right font-mono text-[9.5px] font-bold uppercase tracking-[0.1em]">
+                  MCAP
                 </th>
                 {COLUMNS.map((col) => (
                   <th
                     key={col.key as string}
-                    className="px-3 py-2.5 text-right text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    className="px-3 py-2.5 text-right font-mono text-[9.5px] font-bold uppercase tracking-[0.1em]"
                   >
                     {col.label}
                   </th>
                 ))}
-                <th className="px-3 py-2.5 text-right text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  綜合
+                <th className="px-3 py-2.5 text-right font-mono text-[9.5px] font-bold uppercase tracking-[0.1em]">
+                  SCORE
                 </th>
               </tr>
             </thead>
@@ -272,34 +277,37 @@ export function PeerComparison({ symbol }: Props) {
                 return (
                   <tr
                     key={peer.symbol}
-                    className="border-t border-black/[0.04] transition-colors hover:bg-black/[0.02]"
-                    style={{ background: isTarget ? "rgba(204,120,92,0.06)" : undefined }}
+                    className="border-t border-hair-soft transition-colors hover:bg-paper"
+                    style={{ background: isTarget ? "rgba(204,120,92,0.07)" : undefined }}
                   >
                     <td className="px-3 py-3">
                       <span
-                        className="font-num text-xs font-bold"
-                        style={{ color: overallRanks[peerIdx] === 1 ? "#CC785C" : "#888" }}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded font-mono text-[11px] font-bold"
+                        style={{
+                          background: overallRanks[peerIdx] === 1 ? "var(--brand)" : "rgba(0,0,0,0.06)",
+                          color: overallRanks[peerIdx] === 1 ? "#fff" : "var(--foreground)",
+                        }}
                       >
-                        #{overallRanks[peerIdx] ?? "—"}
+                        {overallRanks[peerIdx] ?? "—"}
                       </span>
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex items-center gap-2">
-                        <LogoTile symbol={peer.symbol} size={22} />
-                        <div>
+                      <div className="flex items-center gap-2.5">
+                        <LogoTile symbol={peer.symbol} size={26} />
+                        <div className="min-w-0">
                           <div
-                            className="font-num text-xs font-bold"
-                            style={{ color: isTarget ? "#CC785C" : "#1A1A1A" }}
+                            className="font-mono text-[12.5px] font-bold"
+                            style={{ color: isTarget ? "var(--brand)" : "var(--foreground)" }}
                           >
                             {peer.symbol}
                           </div>
-                          <div className="max-w-[120px] truncate text-[9px] text-muted-foreground">
+                          <div className="max-w-[140px] truncate text-[10.5px] text-muted-foreground">
                             {peer.companyName}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-right font-num text-stone-600">
+                    <td className="px-3 py-3 text-right font-mono text-xs text-muted-foreground">
                       {fmtCap(peer.marketCap)}
                     </td>
                     {COLUMNS.map((col, colIdx) => {
@@ -311,9 +319,9 @@ export function PeerComparison({ symbol }: Props) {
                       return (
                         <td key={col.key as string} className="px-3 py-3 text-right">
                           <span
-                            className="inline-flex items-center gap-1 font-num"
+                            className="inline-flex items-center gap-1 font-mono tabular-nums"
                             style={{
-                              color: isBest ? UP_COLOR : isWorst ? DOWN_COLOR : "#444",
+                              color: isBest ? UP_COLOR : isWorst ? DOWN_COLOR : "var(--foreground)",
                               fontWeight: isBest ? 700 : 500,
                             }}
                           >
@@ -331,8 +339,8 @@ export function PeerComparison({ symbol }: Props) {
             </tbody>
           </table>
         </div>
-        <div className="border-t border-black/[0.05] bg-[#FAF7F0] px-4 py-2 text-[10px] text-muted-foreground">
-          綠色 = 同業最優 · 紅色 = 同業最差 · #N = 綜合排名（依 P/E、P/B、P/S、EV/EBITDA、ROE、毛利率、營收成長 7 項平均）
+        <div className="border-t border-hair-soft bg-paper px-4 py-2 font-mono text-[10px] text-muted-foreground">
+          綠色 = 同業最優 · 紅色 = 同業最差 · 排名依 P/E、P/B、P/S、EV/EBITDA、ROE、毛利率、營收成長 7 項平均
         </div>
       </div>
     </div>

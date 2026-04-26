@@ -2,7 +2,6 @@
 
 import { useMemo } from "react"
 import { calculateScore } from "@/lib/scoring"
-import { UP_COLOR, DOWN_COLOR } from "@/lib/format"
 import type { FmpKeyMetrics, FmpRatios, FmpIncomeStatement } from "@/lib/api/fmp"
 import type { ScoreDimension } from "@/lib/scoring"
 
@@ -14,45 +13,63 @@ interface Props {
   isLoading?: boolean
 }
 
-function dimensionColor(score: number): string {
-  if (score >= 70) return UP_COLOR
-  if (score >= 50) return "#CC785C"
-  if (score >= 35) return "#888"
-  return DOWN_COLOR
+const DIM_EN: Record<string, string> = {
+  獲利能力: "PROFIT",
+  成長性: "GROWTH",
+  估值合理: "VALUE",
+  估值: "VALUE",
+  財務健康: "HEALTH",
+  現金流: "CASH",
 }
 
-function gradeBadge(grade: string) {
+function dimColorClass(score: number): string {
+  if (score >= 70) return "text-up-neon"
+  if (score >= 50) return "text-brand"
+  if (score >= 35) return "text-white/50"
+  return "text-down-neon"
+}
+
+function dimColor(score: number): string {
+  if (score >= 70) return "var(--up-neon)"
+  if (score >= 50) return "var(--brand)"
+  if (score >= 35) return "rgba(255,255,255,0.5)"
+  return "var(--down-neon)"
+}
+
+function gradeBadge(grade: string): { label: string; bg: string; color: string } {
   if (grade.startsWith("A")) {
-    return { label: "STRONG", bg: UP_COLOR, color: "#fff" }
+    return { label: "STRONG", bg: "var(--up-neon)", color: "#1A1A1A" }
   }
   if (grade.startsWith("B")) {
-    return { label: "GOOD", bg: "rgba(0,212,126,0.15)", color: UP_COLOR }
+    return { label: "GOOD", bg: "var(--up)", color: "#fff" }
   }
   if (grade === "C") {
-    return { label: "NEUTRAL", bg: "rgba(0,0,0,0.06)", color: "#666" }
+    return { label: "NEUTRAL", bg: "rgba(255,255,255,0.15)", color: "#fff" }
   }
-  return { label: "WEAK", bg: "rgba(255,71,87,0.12)", color: DOWN_COLOR }
+  return { label: "WEAK", bg: "var(--down-neon)", color: "#1A1A1A" }
 }
 
-function DimensionBar({ dim }: { dim: ScoreDimension }) {
-  const color = dimensionColor(dim.score)
+function DimensionRow({ dim }: { dim: ScoreDimension }) {
+  const en = DIM_EN[dim.label] ?? dim.name.toUpperCase()
+  const c = dimColor(dim.score)
+  const tenScale = (dim.score / 10).toFixed(1)
   return (
-    <div>
-      <div className="mb-1 flex justify-between text-[11px]">
-        <span className="text-stone-700">
-          {dim.label}
-          <span className="ml-1 text-[10px] text-stone-400">({dim.weight}%)</span>
-        </span>
-        <span className="font-num font-semibold" style={{ color }}>
-          {(dim.score / 10).toFixed(1)}
-        </span>
+    <div className="flex items-center gap-2.5">
+      <div className="w-[100px]">
+        <div className="text-xs font-semibold text-[#F4EFE6]">{dim.label}</div>
+        <div className="font-mono text-[9px] tracking-[0.06em] text-white/40">
+          {en}
+        </div>
       </div>
-      <div className="h-[5px] rounded-sm bg-black/[0.05]">
+      <div className="h-[5px] flex-1 rounded-sm bg-white/10">
         <div
           className="h-full rounded-sm transition-all duration-700"
-          style={{ width: `${dim.score}%`, background: color }}
+          style={{ width: `${dim.score}%`, background: c }}
         />
       </div>
+      <span className={"w-9 text-right font-mono text-sm font-bold " + dimColorClass(dim.score)}>
+        {tenScale}
+      </span>
     </div>
   )
 }
@@ -65,56 +82,53 @@ export function ScoreCard({ keyMetrics, ratios, income, sector, isLoading }: Pro
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-black/[0.06] bg-white p-[18px]">
+      <section className="overflow-hidden rounded-xl bg-ink p-[18px] text-ink-foreground">
         <div className="space-y-3">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-5 animate-pulse rounded bg-black/[0.05]" />
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-5 animate-pulse rounded bg-white/10" />
           ))}
         </div>
-      </div>
+      </section>
     )
   }
 
   if (!result) {
     return (
-      <div className="rounded-xl border border-black/[0.06] bg-white p-[18px] text-center">
-        <p className="text-sm text-muted-foreground">無法計算評分</p>
-        <p className="mt-1 text-xs text-stone-400">財務數據不足</p>
-      </div>
+      <section className="overflow-hidden rounded-xl bg-ink p-[18px] text-center text-ink-foreground">
+        <p className="text-sm text-white/70">無法計算評分</p>
+        <p className="mt-1 text-xs text-white/40">財務數據不足</p>
+      </section>
     )
   }
 
-  const tenScale = result.total / 10
+  const tenScale = (result.total / 10).toFixed(1)
   const badge = gradeBadge(result.grade)
 
   return (
-    <div className="rounded-xl border border-black/[0.06] bg-white p-[18px]">
-      <div className="flex items-baseline justify-between">
-        <span className="font-serif text-xs font-semibold">綜合評分</span>
-        <span className="text-[9px] uppercase tracking-wider text-stone-500">
-          {result.sectorLabel}
-        </span>
+    <section className="relative overflow-hidden rounded-xl bg-ink p-[18px] text-ink-foreground">
+      <div className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-brand">
+        COMPOSITE SCORE · {result.sectorLabel.toUpperCase()}
       </div>
-      <div className="mt-1.5 flex items-baseline gap-1.5">
+      <div className="mt-2 flex items-baseline gap-2">
         <span
-          className="font-num text-[44px] font-bold tracking-tighter"
-          style={{ letterSpacing: "-0.02em" }}
+          className="font-mono text-[56px] font-bold leading-none tabular-nums"
+          style={{ letterSpacing: "-0.03em" }}
         >
-          {tenScale.toFixed(1)}
+          {tenScale}
         </span>
-        <span className="text-[13px] text-stone-500">/ 10</span>
+        <span className="font-mono text-lg text-white/50">/ 10</span>
         <span
-          className="ml-auto rounded-md px-2 py-0.5 text-[11px] font-bold"
+          className="ml-auto rounded px-2.5 py-1 font-mono text-xs font-bold"
           style={{ background: badge.bg, color: badge.color }}
         >
           {badge.label}
         </span>
       </div>
-      <div className="mt-3.5 flex flex-col gap-2.5">
+      <div className="mt-4 flex flex-col gap-2.5">
         {result.dimensions.map((dim) => (
-          <DimensionBar key={dim.name} dim={dim} />
+          <DimensionRow key={dim.name} dim={dim} />
         ))}
       </div>
-    </div>
+    </section>
   )
 }

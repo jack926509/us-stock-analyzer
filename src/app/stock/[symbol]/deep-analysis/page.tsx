@@ -1,8 +1,8 @@
 import { validateSymbol } from "@/lib/validations"
 import { notFound } from "next/navigation"
 import { DeepAnalysisClient } from "./DeepAnalysisClient"
-import Link from "next/link"
-import { ChevronLeft } from "lucide-react"
+import { TickerBar } from "@/components/design/TickerBar"
+import { Navbar } from "@/components/dashboard/Navbar"
 
 interface Props {
   params: Promise<{ symbol: string }>
@@ -17,14 +17,18 @@ export default async function DeepAnalysisPage({ params }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <Link
-        href={`/stock/${symbol}`}
-        className="mb-6 inline-flex items-center gap-1 text-sm text-stone-600 hover:text-stone-900 transition-colors"
-      >
-        <ChevronLeft size={14} /> 返回 {symbol} 概覽
-      </Link>
-      <DeepAnalysisClient symbol={symbol} />
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <TickerBar />
+      <Navbar
+        breadcrumb={[
+          { label: "儀表板", href: "/" },
+          { label: symbol, href: `/stock/${symbol}` },
+          { label: "深度分析" },
+        ]}
+      />
+      <main className="flex-1 px-4 py-6 sm:px-8">
+        <DeepAnalysisClient symbol={symbol} />
+      </main>
     </div>
   )
 }

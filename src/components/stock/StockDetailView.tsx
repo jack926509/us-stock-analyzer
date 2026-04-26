@@ -1,17 +1,19 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import { TickerBar } from "@/components/design/TickerBar"
 import { Navbar } from "@/components/dashboard/Navbar"
 import { StockHeader } from "./StockHeader"
-import { TradingViewWidget } from "@/components/charts/TradingViewWidget.dynamic"
-import { TradingViewTechAnalysis } from "@/components/charts/TradingViewTechAnalysis.dynamic"
+import { ChartCard } from "./ChartCard"
 import { PeerComparison } from "./PeerComparison"
 import { ScoreCard } from "./ScoreCard"
+import { QuoteSheet } from "./QuoteSheet"
+import { StockNewsList } from "./StockNewsList"
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary"
-import { NewsPanel } from "@/components/analysis/NewsPanel"
 import { DeepAnalysisClient } from "@/app/stock/[symbol]/deep-analysis/DeepAnalysisClient"
 import type {
   FmpProfile,
+  FmpQuote,
   FmpIncomeStatement,
   FmpBalanceSheet,
   FmpCashFlowStatement,
@@ -52,6 +54,15 @@ export function StockDetailView({ symbol }: Props) {
     retry: 1,
   })
 
+  // 從追蹤清單抓 FmpQuote（含 OHLC / 52W / volume）— 若該股票不在 watchlist 則為 null，
+  // QuoteSheet / ChartCard OHLC strip 會顯示 "—"。後續若要支援非追蹤股，需新增 /api/quote 端點。
+  const { data: watchlistData } = useQuery<Array<{ symbol: string; quote: FmpQuote | null }>>({
+    queryKey: ["watchlist"],
+    queryFn: () => fetch("/api/stocks").then((r) => r.json()),
+    staleTime: 60 * 1000,
+  })
+  const quote = watchlistData?.find((w) => w.symbol === symbol)?.quote ?? null
+
   const { data: financials, isLoading: financialsLoading } = useQuery<FinancialsData>({
     queryKey: ["financials", symbol, "annual"],
     queryFn: () =>
@@ -67,75 +78,50 @@ export function StockDetailView({ symbol }: Props) {
 
   return (
     <div className="animate-fade-in-up flex min-h-screen flex-col bg-background text-foreground">
-      <Navbar onRefresh={() => location.reload()} isRefreshing={false} />
+      <TickerBar />
+      <Navbar
+        breadcrumb={[
+          { label: "儀表板", href: "/" },
+          { label: "追蹤清單", href: "/" },
+          { label: symbol },
+        ]}
+      />
 
       <StockHeader
         profile={profile ?? null}
         symbol={symbol}
-        price={profile?.price}
-        changePercentage={profile?.changePercentage}
-        change={profile?.change}
+        price={quote?.price ?? profile?.price}
+        changePercentage={quote?.changePercentage ?? profile?.changePercentage}
+        change={quote?.change ?? profile?.change}
       />
 
-      <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 pb-12 pt-5 sm:px-8">
-        {/* Chart + tech analysis */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_320px]">
-          <div className="min-w-0">
-            <TradingViewWidget symbol={tvSymbol} height={460} />
-          </div>
-          <div>
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              技術分析 · TradingView
-            </div>
-            <div className="rounded-xl border border-black/[0.06] bg-white p-4">
-              <TradingViewTechAnalysis symbol={tvSymbol} width="100%" height={420} />
-            </div>
-          </div>
-        </div>
-
-        {/* Peer + Score + News */}
-        <section className="mt-9">
-          <h2
-            className="m-0 font-serif text-xl font-semibold tracking-tight"
-            style={{ letterSpacing: "-0.01em" }}
-          >
-            同業比較與評分
-          </h2>
-          <div className="mb-4 mt-0.5 text-[11px] text-muted-foreground">
-            與同產業公司關鍵指標對比，自動換算 0–10 分綜合評分
-          </div>
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
+      <main className="flex-1 px-4 pb-12 pt-5 sm:px-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_380px]">
+          <div className="flex min-w-0 flex-col gap-5">
+            <ChartCard tvSymbol={tvSymbol} quote={quote ?? undefined} />
             <ErrorBoundary>
               <PeerComparison symbol={symbol} />
             </ErrorBoundary>
-            <div className="flex flex-col gap-3.5">
-              <ErrorBoundary>
-                <ScoreCard
-                  keyMetrics={financials?.keyMetrics ?? []}
-                  ratios={financials?.ratios ?? []}
-                  income={financials?.income}
-                  sector={profile?.sector}
-                  isLoading={financialsLoading}
-                />
-              </ErrorBoundary>
-              <div className="rounded-xl border border-black/[0.06] bg-white p-4">
-                <h3 className="mb-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  近期新聞
-                </h3>
-                <ErrorBoundary>
-                  <NewsPanel symbol={symbol} />
-                </ErrorBoundary>
-              </div>
-            </div>
+            <ErrorBoundary>
+              <DeepAnalysisClient symbol={symbol} />
+            </ErrorBoundary>
           </div>
-        </section>
-
-        {/* Deep analysis */}
-        <section className="mt-10">
-          <ErrorBoundary>
-            <DeepAnalysisClient symbol={symbol} />
-          </ErrorBoundary>
-        </section>
+          <aside className="flex flex-col gap-5">
+            <ErrorBoundary>
+              <ScoreCard
+                keyMetrics={financials?.keyMetrics ?? []}
+                ratios={financials?.ratios ?? []}
+                income={financials?.income}
+                sector={profile?.sector}
+                isLoading={financialsLoading}
+              />
+            </ErrorBoundary>
+            <QuoteSheet profile={profile ?? null} quote={quote ?? null} />
+            <ErrorBoundary>
+              <StockNewsList symbol={symbol} />
+            </ErrorBoundary>
+          </aside>
+        </div>
       </main>
     </div>
   )

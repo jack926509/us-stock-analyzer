@@ -1,12 +1,16 @@
 "use client"
 
-import { useReducer, useRef, useState } from "react"
-import { Sparkles, RefreshCw, AlertCircle } from "lucide-react"
+import { useMemo, useReducer, useRef, useState } from "react"
+import { Sparkles, Pause, RefreshCw, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { parseSseStream } from "@/lib/agents/sse-parser"
 import type { AgentEvent, AgentId, AgentPhase } from "@/lib/agents/types"
-import { AGENT_LABELS, MASTER_LABELS } from "@/lib/agents/types"
-import { AgentCard, type AgentStatus } from "@/components/deep-analysis/AgentCard"
+import { AGENT_LABELS, AGENT_META } from "@/lib/agents/types"
+import {
+  AgentCard,
+  type AgentStatus,
+  type AgentGroup,
+} from "@/components/deep-analysis/AgentCard"
 import { PhaseProgress, type PhaseStatus } from "@/components/deep-analysis/PhaseProgress"
 
 interface Props {
@@ -21,33 +25,32 @@ const ALL_AGENTS: AgentId[] = [
   "aggressive", "conservative", "neutral", "portfolio",
 ]
 
+const AGENT_GROUP: Record<AgentId, AgentGroup> = ALL_AGENTS.reduce((acc, id) => {
+  acc[id] = AGENT_META[id].group
+  return acc
+}, {} as Record<AgentId, AgentGroup>)
+
 const initialAgents: AgentState = ALL_AGENTS.reduce((acc, id) => {
   acc[id] = { status: "pending", content: "" }
   return acc
 }, {} as AgentState)
 
 const initialPhases: Record<AgentPhase, PhaseStatus> = {
-  data: "done", // 進場前已先抓資料
+  data: "done",
   masters: "pending",
   debate: "pending",
   risk: "pending",
   portfolio: "pending",
 }
 
-type Action =
-  | { type: "reset" }
-  | { type: "event"; event: AgentEvent }
+type Action = { type: "reset" } | { type: "event"; event: AgentEvent }
 
 function reducer(
   state: { agents: AgentState; phases: Record<AgentPhase, PhaseStatus>; errors: string[] },
-  action: Action
+  action: Action,
 ) {
   if (action.type === "reset") {
-    return {
-      agents: { ...initialAgents },
-      phases: { ...initialPhases },
-      errors: [],
-    }
+    return { agents: { ...initialAgents }, phases: { ...initialPhases }, errors: [] }
   }
   const e = action.event
   switch (e.type) {
@@ -110,6 +113,16 @@ function reducer(
   }
 }
 
+type GroupFilter = "all" | AgentGroup
+
+const GROUP_TABS: { id: GroupFilter; label: string; count: number }[] = [
+  { id: "all", label: "全部", count: 13 },
+  { id: "masters", label: "投資大師", count: 6 },
+  { id: "debate", label: "辯論", count: 3 },
+  { id: "risk", label: "風險", count: 3 },
+  { id: "pm", label: "PM 整合", count: 1 },
+]
+
 export function DeepAnalysisClient({ symbol }: Props) {
   const [{ agents, phases, errors }, dispatch] = useReducer(reducer, {
     agents: { ...initialAgents },
@@ -117,6 +130,7 @@ export function DeepAnalysisClient({ symbol }: Props) {
     errors: [],
   })
   const [isStreaming, setIsStreaming] = useState(false)
+  const [filter, setFilter] = useState<GroupFilter>("all")
   const abortRef = useRef<AbortController | null>(null)
 
   async function handleStart() {
@@ -149,165 +163,230 @@ export function DeepAnalysisClient({ symbol }: Props) {
     }
   }
 
+  // Stats
+  const reportedAgents = ALL_AGENTS.filter((id) => agents[id].status === "done")
+  const totalReported = reportedAgents.length
+
+  // 共識行 — done 數量、進度
+  const consensusStats = useMemo(() => {
+    const done = totalReported
+    return [
+      {
+        l: "REPORTED",
+        v: `${done} / 13`,
+        sub: done === 13 ? "all in" : `${13 - done} remain`,
+        c: done === 13 ? "var(--up)" : "var(--brand)",
+      },
+      {
+        l: "PHASE",
+        v: phases.portfolio === "done"
+          ? "DONE"
+          : phases.risk !== "pending"
+            ? "RISK"
+            : phases.debate !== "pending"
+              ? "DEBATE"
+              : phases.masters !== "pending"
+                ? "MASTERS"
+                : "READY",
+        sub: isStreaming ? "streaming" : "idle",
+        c: "var(--ink)",
+        badge: true,
+      },
+      {
+        l: "ERRORS",
+        v: errors.length === 0 ? "0" : String(errors.length),
+        sub: errors.length === 0 ? "clean run" : "see notes",
+        c: errors.length === 0 ? "var(--up)" : "var(--down)",
+      },
+      {
+        l: "ELAPSED",
+        v: isStreaming ? "—" : phases.portfolio === "done" ? "DONE" : "—",
+        sub: isStreaming ? "live stream" : "—",
+        c: "var(--brand)",
+      },
+    ]
+  }, [totalReported, phases, errors, isStreaming])
+
+  const filteredAgents =
+    filter === "all" ? ALL_AGENTS : ALL_AGENTS.filter((id) => AGENT_GROUP[id] === filter)
+
   const portfolio = agents.portfolio
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-serif font-semibold text-stone-900">
-            {symbol} 深度分析
-          </h1>
-          <p className="mt-1 text-sm text-stone-600">
-            6 位投資大師 · 多空辯論 · 三方風險辯論 · 投組整合
-          </p>
+    <section className="overflow-hidden rounded-xl border border-hair bg-card">
+      {/* Header — large title + brand accent rule */}
+      <div className="relative border-b border-hair px-5 py-5 sm:px-6">
+        <div className="absolute left-0 top-5 bottom-5 w-[3px] bg-brand" />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-brand">
+              <span
+                className={cn(
+                  "size-1.5 rounded-full bg-brand shadow-[0_0_8px] shadow-brand",
+                  isStreaming && "animate-dot-pulse",
+                )}
+              />
+              CLAUDE 4.6 · {isStreaming ? "LIVE STREAM" : "READY"}
+            </div>
+            <h2 className="mt-1.5 font-serif text-2xl font-semibold tracking-tight">
+              13 位 AI 代理人深度分析
+            </h2>
+            <div className="mt-1 font-mono text-[11px] tracking-[0.04em] text-muted-foreground">
+              {symbol} · {totalReported} of 13 reported
+            </div>
+          </div>
+          <button
+            onClick={handleStart}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-xs font-bold tracking-[0.04em] transition-colors",
+              isStreaming
+                ? "bg-down text-white hover:opacity-90"
+                : portfolio.content
+                  ? "bg-ink text-ink-foreground hover:opacity-90"
+                  : "bg-brand text-white hover:opacity-90",
+            )}
+          >
+            {isStreaming ? (
+              <>
+                <Pause size={14} /> PAUSE STREAM
+              </>
+            ) : portfolio.content ? (
+              <>
+                <RefreshCw size={14} /> 重新分析
+              </>
+            ) : (
+              <>
+                <Sparkles size={14} /> 啟動深度分析
+              </>
+            )}
+          </button>
         </div>
-        <button
-          onClick={handleStart}
-          className={cn(
-            "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-medium transition-colors",
-            isStreaming
-              ? "bg-red-500/10 text-red-600 ring-1 ring-red-500/20 hover:bg-red-500/15"
-              : "bg-[#CC785C] text-white hover:bg-[#B8674F]"
-          )}
-        >
-          {isStreaming ? (
-            <>
-              <RefreshCw size={14} className="animate-spin" />
-              中止
-            </>
-          ) : portfolio.content ? (
-            <>
-              <RefreshCw size={14} />
-              重新分析
-            </>
-          ) : (
-            <>
-              <Sparkles size={14} />
-              啟動深度分析
-            </>
-          )}
-        </button>
+
+        {/* 4-phase stepper */}
+        <div className="mt-5">
+          <PhaseProgress phases={phases} />
+        </div>
       </div>
 
-      <PhaseProgress phases={phases} />
+      {/* Consensus row */}
+      <div className="grid grid-cols-2 border-b border-hair bg-white sm:grid-cols-4">
+        {consensusStats.map((k, i) => (
+          <div
+            key={k.l}
+            className={
+              "px-4 py-4 sm:px-5 " +
+              (i < consensusStats.length - 1
+                ? "border-b border-hair-soft sm:border-b-0 sm:[&:nth-child(2)]:border-r-0 sm:border-r " +
+                  "[&:nth-child(2n)]:border-r-0 sm:[&:nth-child(2n)]:border-r " +
+                  "sm:[&:nth-child(4)]:border-r-0"
+                : "")
+            }
+          >
+            <div className="font-mono text-[9.5px] font-bold tracking-[0.12em] text-muted-foreground">
+              {k.l}
+            </div>
+            <div
+              className={
+                "mt-1.5 font-mono font-bold leading-tight tabular-nums " +
+                (k.badge ? "inline-block rounded px-3 py-0.5 text-base" : "text-[26px]")
+              }
+              style={{
+                color: k.badge ? "#fff" : k.c,
+                background: k.badge ? k.c : "transparent",
+                letterSpacing: k.badge ? undefined : "-0.02em",
+              }}
+            >
+              {k.v}
+            </div>
+            <div className="mt-1 font-mono text-[10.5px] text-muted-foreground">{k.sub}</div>
+          </div>
+        ))}
+      </div>
 
+      {/* Group filter pills */}
+      <div className="flex flex-wrap gap-2 border-b border-hair bg-card px-4 py-3 sm:px-6">
+        {GROUP_TABS.map((g) => {
+          const active = filter === g.id
+          return (
+            <button
+              key={g.id}
+              onClick={() => setFilter(g.id)}
+              className={cn(
+                "rounded-full border px-3.5 py-1.5 text-[11px] font-semibold transition-colors",
+                active
+                  ? "border-ink bg-ink text-ink-foreground"
+                  : "border-hair bg-white text-foreground hover:border-foreground",
+              )}
+            >
+              {g.label}
+              <span className="ml-1.5 font-mono opacity-60">{g.count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Errors */}
       {errors.length > 0 && (
-        <div className="rounded-lg bg-red-50 px-4 py-3 ring-1 ring-red-200">
+        <div className="border-b border-down/30 bg-down/[0.05] px-5 py-3">
           <div className="flex items-start gap-2">
-            <AlertCircle size={16} className="mt-0.5 shrink-0 text-red-600" />
+            <AlertCircle size={16} className="mt-0.5 shrink-0 text-down" />
             <div className="flex-1 space-y-1">
-              <p className="text-xs font-medium text-red-800">分析過程發生錯誤</p>
+              <p className="text-xs font-medium text-down">分析過程發生錯誤</p>
               {errors.map((m, i) => (
-                <p key={i} className="text-xs text-red-700">{m}</p>
+                <p key={i} className="font-mono text-[11px] text-down">
+                  {m}
+                </p>
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* 1. 6 位大師（網格） */}
-      <Section title="投資大師獨立分析" subtitle="6 位大師基於相同資料、各自鏡頭做判斷">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {(Object.keys(MASTER_LABELS) as Array<keyof typeof MASTER_LABELS>).map((m) => (
+      {/* Agents grid */}
+      <div className="grid grid-cols-1 gap-3.5 bg-paper p-4 md:grid-cols-2 sm:p-5 xl:grid-cols-3">
+        {filteredAgents
+          .filter((id) => id !== "portfolio")
+          .map((id) => (
             <AgentCard
-              key={m}
-              label={AGENT_LABELS[m]}
-              status={agents[m].status}
-              content={agents[m].content}
-              errorMessage={agents[m].errorMessage}
+              key={id}
+              meta={AGENT_META[id]}
+              status={agents[id].status}
+              content={agents[id].content}
+              errorMessage={agents[id].errorMessage}
               compact
             />
           ))}
-        </div>
-      </Section>
-
-      {/* 2. 多空辯論 */}
-      <Section title="多空辯論" subtitle="兩派研究員針鋒相對，研究主管裁決">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <AgentCard
-            label={AGENT_LABELS.bull}
-            status={agents.bull.status}
-            content={agents.bull.content}
-            errorMessage={agents.bull.errorMessage}
-            compact
-          />
-          <AgentCard
-            label={AGENT_LABELS.bear}
-            status={agents.bear.status}
-            content={agents.bear.content}
-            errorMessage={agents.bear.errorMessage}
-            compact
-          />
-        </div>
-        <div className="mt-3">
-          <AgentCard
-            label={AGENT_LABELS.manager}
-            status={agents.manager.status}
-            content={agents.manager.content}
-            errorMessage={agents.manager.errorMessage}
-            compact
-          />
-        </div>
-      </Section>
-
-      {/* 3. 風險辯論 */}
-      <Section title="風險辯論" subtitle="激進派 / 保守派 / 中立派各陳倉位邏輯">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <AgentCard
-            label={AGENT_LABELS.aggressive}
-            status={agents.aggressive.status}
-            content={agents.aggressive.content}
-            errorMessage={agents.aggressive.errorMessage}
-            compact
-          />
-          <AgentCard
-            label={AGENT_LABELS.conservative}
-            status={agents.conservative.status}
-            content={agents.conservative.content}
-            errorMessage={agents.conservative.errorMessage}
-            compact
-          />
-          <AgentCard
-            label={AGENT_LABELS.neutral}
-            status={agents.neutral.status}
-            content={agents.neutral.content}
-            errorMessage={agents.neutral.errorMessage}
-            compact
-          />
-        </div>
-      </Section>
-
-      {/* 4. Portfolio Manager 最終決策 */}
-      <Section title="投組經理最終決策" subtitle="整合所有觀點，輸出可執行報告">
-        <AgentCard
-          label={AGENT_LABELS.portfolio}
-          status={agents.portfolio.status}
-          content={agents.portfolio.content}
-          errorMessage={agents.portfolio.errorMessage}
-        />
-      </Section>
-    </div>
-  )
-}
-
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string
-  subtitle: string
-  children: React.ReactNode
-}) {
-  return (
-    <section>
-      <div className="mb-3">
-        <h2 className="text-base font-serif font-semibold text-stone-900">{title}</h2>
-        <p className="text-xs text-stone-500">{subtitle}</p>
       </div>
-      {children}
+
+      {/* Portfolio Manager — full-width final report */}
+      {(filter === "all" || filter === "pm") && (
+        <div className="border-t border-hair bg-paper p-4 sm:p-5">
+          <div className="mb-3">
+            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-brand">
+              FINAL REPORT · PORTFOLIO MANAGER
+            </div>
+            <h3 className="mt-1 font-serif text-base font-semibold tracking-tight">
+              投組經理最終決策
+            </h3>
+          </div>
+          <AgentCard
+            meta={AGENT_META.portfolio}
+            status={portfolio.status}
+            content={portfolio.content}
+            errorMessage={portfolio.errorMessage}
+          />
+        </div>
+      )}
+
+      {/* Empty state if not started */}
+      {!isStreaming && totalReported === 0 && (
+        <div className="border-t border-hair bg-card px-6 py-10 text-center">
+          <p className="font-serif text-base font-semibold text-foreground">尚未啟動深度分析</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            點上方「啟動深度分析」按鈕開始 13 代理人 SSE 串流
+          </p>
+        </div>
+      )}
     </section>
   )
 }

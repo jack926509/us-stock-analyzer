@@ -66,3 +66,28 @@ export const AGENT_LABELS: Record<AgentId, string> = {
   neutral: "中立派風險分析師",
   portfolio: "投資組合經理（最終決策）",
 }
+
+// UI 顯示用的結構化 metadata（吸收自 design/data.jsx）— AgentCard 雙行式呈現
+export type AgentGroupKey = "masters" | "debate" | "risk" | "pm"
+export interface AgentMeta {
+  zh: string
+  en: string
+  tagline: string
+  group: AgentGroupKey
+}
+
+export const AGENT_META: Record<AgentId, AgentMeta> = {
+  buffett: { zh: "華倫·巴菲特", en: "Buffett", tagline: "護城河 / ROE / 安全邊際", group: "masters" },
+  lynch: { zh: "彼得·林奇", en: "Lynch", tagline: "PEG / 十倍股分類", group: "masters" },
+  wood: { zh: "凱西·伍德", en: "Wood", tagline: "顛覆式創新 / TAM", group: "masters" },
+  burry: { zh: "麥可·貝瑞", en: "Burry", tagline: "逆向 / 資產負債表", group: "masters" },
+  ackman: { zh: "比爾·艾克曼", en: "Ackman", tagline: "集中持股 / 活動家", group: "masters" },
+  taleb: { zh: "納西姆·塔雷伯", en: "Taleb", tagline: "反脆弱 / 黑天鵝抗性", group: "masters" },
+  bull: { zh: "多方研究員", en: "Bull", tagline: "看多論述", group: "debate" },
+  bear: { zh: "空方研究員", en: "Bear", tagline: "看空論述", group: "debate" },
+  manager: { zh: "研究主管", en: "Manager", tagline: "多空裁決", group: "debate" },
+  aggressive: { zh: "激進派", en: "Aggressive", tagline: "高倉位邏輯", group: "risk" },
+  conservative: { zh: "保守派", en: "Conservative", tagline: "低倉位邏輯", group: "risk" },
+  neutral: { zh: "中立派", en: "Neutral", tagline: "平衡視角", group: "risk" },
+  portfolio: { zh: "投組經理", en: "PM", tagline: "最終整合決策", group: "pm" },
+}

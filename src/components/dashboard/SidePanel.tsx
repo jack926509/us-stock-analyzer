@@ -1,7 +1,6 @@
 "use client"
 
-import { LogoTile } from "@/components/design/LogoTile"
-import { fmtPct } from "@/lib/format"
+import Link from "next/link"
 import type { FmpQuote } from "@/lib/api/fmp"
 import type { Watchlist } from "@/lib/db/schema"
 
@@ -11,95 +10,95 @@ interface SidePanelProps {
   data: WatchlistEntry[]
 }
 
+// 黑卡 AI Brief — v2 設計的右欄主視覺
 export function SidePanel({ data }: SidePanelProps) {
-  const withQuotes = data.filter((d): d is WatchlistEntry & { quote: FmpQuote } => d.quote !== null)
-
-  const peValues = withQuotes
-    .map((d) => d.quote.pe)
-    .filter((pe): pe is number => typeof pe === "number" && pe > 0 && pe < 1000)
-  const avgPE = peValues.length > 0 ? peValues.reduce((s, v) => s + v, 0) / peValues.length : null
-
-  const gainers = [...withQuotes]
-    .filter((d) => d.quote.changePercentage > 0)
-    .sort((a, b) => b.quote.changePercentage - a.quote.changePercentage)
-    .slice(0, 5)
-
-  const losers = [...withQuotes]
-    .filter((d) => d.quote.changePercentage < 0)
-    .sort((a, b) => a.quote.changePercentage - b.quote.changePercentage)
-    .slice(0, 5)
-
-  return (
-    <aside className="flex flex-col gap-3.5">
-      {/* Avg P/E */}
-      <div className="rounded-xl border border-black/[0.06] bg-white p-4">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-stone-500">
-          清單平均 P/E
-        </div>
-        <div
-          className="mt-1 font-num text-[32px] font-bold"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          {avgPE ? avgPE.toFixed(1) : "—"}
-        </div>
-        <div className="text-[11px] text-stone-500">
-          {peValues.length} 支有效 · S&P 平均 24.6
-        </div>
-      </div>
-
-      {/* Top gainers */}
-      <SidePanelList
-        title="Top 5 漲幅"
-        symbol="▲"
-        symbolColor="#006e3f"
-        items={gainers}
-        valueColor="#006e3f"
-      />
-
-      {/* Top losers */}
-      <SidePanelList
-        title="Top 5 跌幅"
-        symbol="▼"
-        symbolColor="#c62828"
-        items={losers}
-        valueColor="#c62828"
-      />
-    </aside>
+  const withQuotes = data.filter(
+    (d): d is WatchlistEntry & { quote: FmpQuote } => d.quote !== null,
   )
-}
 
-interface SidePanelListProps {
-  title: string
-  symbol: string
-  symbolColor: string
-  items: Array<{ symbol: string; quote: FmpQuote }>
-  valueColor: string
-}
+  const buys = withQuotes.filter((d) => d.quote.changePercentage >= 1.5).length
+  const sells = withQuotes.filter((d) => d.quote.changePercentage <= -1.5).length
+  const holds = withQuotes.length - buys - sells
 
-function SidePanelList({ title, symbol, symbolColor, items, valueColor }: SidePanelListProps) {
+  const topGainer = [...withQuotes]
+    .sort((a, b) => b.quote.changePercentage - a.quote.changePercentage)[0]
+  const topLoser = [...withQuotes]
+    .sort((a, b) => a.quote.changePercentage - b.quote.changePercentage)[0]
+
+  const briefLines: string[] = []
+  if (topGainer) {
+    briefLines.push(
+      `本日領漲 ${topGainer.symbol}（${topGainer.quote.changePercentage >= 0 ? "+" : ""}${topGainer.quote.changePercentage.toFixed(2)}%）`,
+    )
+  }
+  if (topLoser && topLoser.symbol !== topGainer?.symbol) {
+    briefLines.push(
+      `表現最弱 ${topLoser.symbol}（${topLoser.quote.changePercentage.toFixed(2)}%）`,
+    )
+  }
+  briefLines.push(`追蹤清單共 ${data.length} 檔，買訊 ${buys} / 持有 ${holds} / 賣訊 ${sells}。`)
+
+  const brief = briefLines.join("，") + "。"
+
+  // 用追蹤清單第一檔當深度分析入口（最常見場景）
+  const primarySymbol = data[0]?.symbol
+
   return (
-    <div className="rounded-xl border border-black/[0.06] bg-white p-4">
-      <div className="mb-2.5 flex items-center gap-1.5">
-        <span className="text-[11px]" style={{ color: symbolColor }}>{symbol}</span>
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-stone-600">
-          {title}
-        </span>
+    <section className="relative overflow-hidden rounded-xl bg-ink p-[18px] text-ink-foreground">
+      <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-brand">
+        <span className="size-1.5 animate-dot-pulse rounded-full bg-brand shadow-[0_0_8px] shadow-brand" />
+        AI BRIEF · CLAUDE 4.6
       </div>
-      {items.length === 0 ? (
-        <div className="py-2 text-[11px] text-stone-400">無資料</div>
-      ) : (
-        items.map((w) => (
-          <div key={w.symbol} className="flex items-center justify-between py-1.5 text-xs">
-            <div className="flex items-center gap-2">
-              <LogoTile symbol={w.symbol} size={20} />
-              <span className="font-num font-bold">{w.symbol}</span>
+      <h3 className="mb-1 mt-2 font-serif text-lg font-semibold tracking-tight">今日投組摘要</h3>
+      <div className="font-mono text-[10px] text-white/50">
+        {new Date().toLocaleString("en-US", {
+          timeZone: "America/New_York",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })}{" "}
+        EDT · 規則摘要
+      </div>
+      <p className="mt-3 text-[12.5px] leading-relaxed text-white/90">
+        {brief}{" "}
+        <span className="font-bold text-brand">
+          建議啟動 13 代理人深度分析以獲得質化判斷。
+        </span>
+      </p>
+
+      <div className="mt-3.5 grid grid-cols-3 gap-2.5">
+        {[
+          { l: "BUY", v: buys, c: "text-up-neon" },
+          { l: "HOLD", v: holds, c: "text-white/70" },
+          { l: "SELL", v: sells, c: "text-down-neon" },
+        ].map((k) => (
+          <div
+            key={k.l}
+            className="rounded-lg border border-white/[0.08] bg-white/[0.05] px-3 py-2.5"
+          >
+            <div className="font-mono text-[9px] font-bold tracking-[0.1em] text-white/50">
+              {k.l}
             </div>
-            <span className="font-num font-semibold" style={{ color: valueColor }}>
-              {fmtPct(w.quote.changePercentage)}
-            </span>
+            <div className={"mt-0.5 font-mono text-[22px] font-bold tabular-nums " + k.c}>
+              {k.v}
+            </div>
           </div>
-        ))
+        ))}
+      </div>
+
+      {primarySymbol ? (
+        <Link
+          href={`/stock/${primarySymbol}/deep-analysis`}
+          className="mt-3.5 flex w-full items-center justify-between rounded-lg bg-brand px-3.5 py-3 text-xs font-bold tracking-[0.04em] text-white"
+        >
+          <span>啟動 13 代理人深度分析</span>
+          <span>→</span>
+        </Link>
+      ) : (
+        <div className="mt-3.5 rounded-lg border border-white/[0.08] bg-white/[0.05] px-3.5 py-3 text-center text-[11px] text-white/50">
+          先新增追蹤股票或持股以啟用深度分析
+        </div>
       )}
-    </div>
+    </section>
   )
 }

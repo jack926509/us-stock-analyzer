@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono, JetBrains_Mono, Noto_Sans_TC, Source_Serif_4, Noto_Serif_TC } from "next/font/google"
 import { Providers } from "@/components/providers"
+import { MobileTabBar } from "@/components/design/MobileTabBar"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -52,8 +53,9 @@ export default function RootLayout({
       lang="zh-TW"
       className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${notoSansTC.variable} ${sourceSerif.variable} ${notoSerifTC.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="min-h-full flex flex-col bg-background text-foreground pb-[88px] lg:pb-0">
         <Providers>{children}</Providers>
+        <MobileTabBar />
       </body>
     </html>
   )
