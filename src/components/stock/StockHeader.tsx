@@ -68,7 +68,7 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
   const isPositive = displayChangePct >= 0
 
   return (
-    <div className="border-b border-black/[0.07] bg-[#ede8e0] px-6 py-5">
+    <div className="border-b border-black/[0.07] bg-secondary px-6 py-5">
       <div className="mx-auto max-w-screen-2xl">
         {/* Back link */}
         <Link
@@ -92,7 +92,7 @@ export function StockHeader({ profile, symbol, price, changePercentage, change }
           {/* Name + symbol */}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold text-stone-900">
+              <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
                 {profile?.companyName ?? symbol}
               </h1>
               <span className="rounded bg-black/[0.08] px-1.5 py-0.5 text-xs font-mono font-medium text-stone-500">

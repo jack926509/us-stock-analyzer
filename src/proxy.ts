@@ -40,12 +40,11 @@ export function proxy(req: NextRequest) {
 
   // ── Rate limit API routes ────────────────────────────────────
   if (pathname.startsWith("/api/")) {
-    // AI analysis POST (generates Claude report): 3 per 60s per IP
-    // AI analysis GET (reads history from DB): use general limit
-    const isAnalysisPost =
-      pathname.startsWith("/api/analysis") && req.method === "POST"
-    const key = isAnalysisPost ? `analysis:${ip}` : ip
-    const limit = isAnalysisPost ? 3 : 60
+    // Deep analysis POST (10 Claude calls per run): 2 per 60s per IP
+    const isDeepAnalysisPost =
+      pathname.startsWith("/api/deep-analysis") && req.method === "POST"
+    const key = isDeepAnalysisPost ? `deep:${ip}` : ip
+    const limit = isDeepAnalysisPost ? 2 : 60
 
     if (isRateLimited(key, limit, 60_000)) {
       return NextResponse.json(

@@ -1,26 +1,21 @@
-import Anthropic from "@anthropic-ai/sdk"
+// 共用脈絡建構器 —
+// 從 src/app/api/analysis/[symbol]/route.ts 抽出的資料整理函式，
+// 供「單一分析師」與「深度多代理人」兩條 pipeline 共用，避免重複維護。
+
 import axios from "axios"
 import { db } from "@/lib/db"
-import { analysisReports, financialCache } from "@/lib/db/schema"
-import { validateSymbol } from "@/lib/validations"
-import { ANALYST_SYSTEM_PROMPT, buildUserPrompt, PROMPT_VERSION } from "@/config/analyst-prompt"
-import { eq, desc, and } from "drizzle-orm"
+import { financialCache } from "@/lib/db/schema"
+import { eq, and } from "drizzle-orm"
 import {
   getIncomeStatements,
   getBalanceSheets,
   getCashFlowStatements,
   getKeyMetrics,
   getFinancialRatios,
-  getQuote,
-  getCompanyProfile,
 } from "@/lib/api/fmp"
-import { getFinnhubProfile, getFinnhubQuote } from "@/lib/api/finnhub"
 import type { PeerData } from "@/app/api/peers/[symbol]/route"
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
-// ─── SQLite cache helper ──────────────────────────────────────────────────────
-
+// ─── SQLite cache fallback ────────────────────────────────────────
 async function readCache<T>(symbol: string, reportType: string): Promise<T[]> {
   try {
     const rows = await db
@@ -38,23 +33,22 @@ async function readCache<T>(symbol: string, reportType: string): Promise<T[]> {
   return []
 }
 
-// ─── Data Builders ────────────────────────────────────────────────────────────
-
-function fmtB(n: number) {
+// ─── 數字格式化 ───────────────────────────────────────────────────
+export function fmtB(n: number) {
   if (Math.abs(n) >= 1e12) return (n / 1e12).toFixed(1) + "T"
   if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(1) + "B"
   if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + "M"
   return n.toFixed(0)
 }
 
-async function buildFinancialSummary(symbol: string): Promise<string> {
+// ─── 財務摘要（3 年 + 資本配置） ──────────────────────────────────
+export async function buildFinancialSummary(symbol: string): Promise<string> {
   let [income, cashflow, balance] = await Promise.all([
-    getIncomeStatements(symbol, "annual", 4), // 4 years for 3 years of YoY
+    getIncomeStatements(symbol, "annual", 4),
     getCashFlowStatements(symbol, "annual", 3),
     getBalanceSheets(symbol, "annual", 3),
   ])
 
-  // Fallback: read from SQLite financial_cache when FMP quota exhausted
   if (!income.length) income = await readCache(symbol, "income")
   if (!cashflow.length) cashflow = await readCache(symbol, "cashflow")
   if (!balance.length) balance = await readCache(symbol, "balance")
@@ -66,7 +60,7 @@ async function buildFinancialSummary(symbol: string): Promise<string> {
     const inc = income[i]
     const cf = cashflow[i]
     const bal = balance[i]
-    const prev = income[i + 1] // previous year for YoY
+    const prev = income[i + 1]
     const year = inc.date.substring(0, 4)
 
     const revYoY = prev && prev.revenue > 0
@@ -87,7 +81,6 @@ async function buildFinancialSummary(symbol: string): Promise<string> {
     )
   }
 
-  // Capital allocation from most recent cashflow
   if (cashflow.length) {
     const cf0 = cashflow[0]
     const year0 = cf0.date.substring(0, 4)
@@ -105,10 +98,11 @@ async function buildFinancialSummary(symbol: string): Promise<string> {
   return lines.join("\n").slice(0, 2500)
 }
 
+// ─── 新聞情緒分類 + 摘要 ──────────────────────────────────────────
 const POS_KEYWORDS = /beat|record|growth|surge|gain|rise|profit|strong|upgrade|buy|exceed|outperform|launch|new|innovation|partnership|expansion/i
 const NEG_KEYWORDS = /miss|fall|decline|loss|cut|downgrade|sell|weak|risk|concern|lawsuit|investigation|recall|layoff|debt|warning|disappoints/i
 
-function classifyNewsSentiment(text: string): string {
+export function classifyNewsSentiment(text: string): string {
   const pos = (text.match(POS_KEYWORDS) || []).length
   const neg = (text.match(NEG_KEYWORDS) || []).length
   if (pos > neg) return "positive"
@@ -116,7 +110,7 @@ function classifyNewsSentiment(text: string): string {
   return "neutral"
 }
 
-async function buildNewsSummary(symbol: string): Promise<string> {
+export async function buildNewsSummary(symbol: string): Promise<string> {
   try {
     const key = process.env.FINNHUB_API_KEY
     if (!key) return "（無法取得新聞）"
@@ -149,13 +143,13 @@ async function buildNewsSummary(symbol: string): Promise<string> {
   }
 }
 
-async function buildKeyMetricsSummary(symbol: string): Promise<string> {
+// ─── 估值 / 獲利核心指標 ──────────────────────────────────────────
+export async function buildKeyMetricsSummary(symbol: string): Promise<string> {
   let [kms, ratios] = await Promise.all([
     getKeyMetrics(symbol, "annual", 1).catch(() => []),
     getFinancialRatios(symbol, "annual", 1).catch(() => []),
   ])
 
-  // Fallback: SQLite cache
   if (!kms.length) kms = await readCache(symbol, "keyMetrics")
   if (!ratios.length) ratios = await readCache(symbol, "ratios")
 
@@ -183,17 +177,16 @@ async function buildKeyMetricsSummary(symbol: string): Promise<string> {
   return parts.join(" | ").slice(0, 500)
 }
 
-async function buildPeerSummary(symbol: string): Promise<string> {
+// ─── 同業比較表 ───────────────────────────────────────────────────
+export async function buildPeerSummary(symbol: string): Promise<string> {
   try {
-    const { default: axiosLib } = await import("axios")
     const FMP_STABLE = "https://financialmodelingprep.com/stable"
     const key = process.env.FMP_API_KEY
     if (!key) return "（無法取得同業數據）"
 
-    // Fetch target peers via FMP v4
     let peerSymbols: string[] = []
     try {
-      const { data } = await axiosLib.get<Array<{ peersList: string[] }>>(
+      const { data } = await axios.get<Array<{ peersList: string[] }>>(
         "https://financialmodelingprep.com/api/v4/stock_peers",
         { params: { symbol, apikey: key }, timeout: 6000 }
       )
@@ -208,9 +201,9 @@ async function buildPeerSummary(symbol: string): Promise<string> {
       allSymbols.map(async (sym): Promise<PeerData | null> => {
         try {
           const [profRes, kmRes, rtRes] = await Promise.allSettled([
-            axiosLib.get<Record<string, unknown>[]>(`${FMP_STABLE}/profile`, { params: { symbol: sym, apikey: key }, timeout: 6000 }),
-            axiosLib.get<Record<string, unknown>[]>(`${FMP_STABLE}/key-metrics`, { params: { symbol: sym, period: "annual", limit: 1, apikey: key }, timeout: 6000 }),
-            axiosLib.get<Record<string, unknown>[]>(`${FMP_STABLE}/ratios`, { params: { symbol: sym, period: "annual", limit: 1, apikey: key }, timeout: 6000 }),
+            axios.get<Record<string, unknown>[]>(`${FMP_STABLE}/profile`, { params: { symbol: sym, apikey: key }, timeout: 6000 }),
+            axios.get<Record<string, unknown>[]>(`${FMP_STABLE}/key-metrics`, { params: { symbol: sym, period: "annual", limit: 1, apikey: key }, timeout: 6000 }),
+            axios.get<Record<string, unknown>[]>(`${FMP_STABLE}/ratios`, { params: { symbol: sym, period: "annual", limit: 1, apikey: key }, timeout: 6000 }),
           ])
           const prof = profRes.status === "fulfilled" && Array.isArray(profRes.value.data) ? profRes.value.data[0] : null
           if (!prof) return null
@@ -248,9 +241,8 @@ async function buildPeerSummary(symbol: string): Promise<string> {
   }
 }
 
-// ─── P2: Earnings Surprises (beat/miss history) ───────────────────────────────
-
-async function buildEarningsSurprisesSummary(symbol: string): Promise<string> {
+// ─── EPS Beat / Miss 紀錄 ────────────────────────────────────────
+export async function buildEarningsSurprisesSummary(symbol: string): Promise<string> {
   try {
     const key = process.env.FMP_API_KEY
     if (!key) return ""
@@ -276,9 +268,8 @@ async function buildEarningsSurprisesSummary(symbol: string): Promise<string> {
   }
 }
 
-// ─── P2: Analyst Consensus (ratings + forward estimates) ─────────────────────
-
-async function buildAnalystConsensusSummary(symbol: string): Promise<string> {
+// ─── 分析師共識 ───────────────────────────────────────────────────
+export async function buildAnalystConsensusSummary(symbol: string): Promise<string> {
   try {
     const key = process.env.FMP_API_KEY
     if (!key) return "（無法取得分析師共識）"
@@ -326,9 +317,8 @@ async function buildAnalystConsensusSummary(symbol: string): Promise<string> {
   }
 }
 
-// ─── P2: Insider Trading (6-month buy/sell signal) ───────────────────────────
-
-async function buildInsiderTradingSummary(symbol: string): Promise<string> {
+// ─── 內部人交易 ───────────────────────────────────────────────────
+export async function buildInsiderTradingSummary(symbol: string): Promise<string> {
   try {
     const key = process.env.FMP_API_KEY
     if (!key) return "（無法取得內部人交易）"
@@ -370,9 +360,8 @@ async function buildInsiderTradingSummary(symbol: string): Promise<string> {
   }
 }
 
-// ─── P3: Macro Context (quarterly hardcoded anchor) ──────────────────────────
-
-function buildMacroContext(): string {
+// ─── 宏觀錨點（季度硬編碼） ───────────────────────────────────────
+export function buildMacroContext(): string {
   const now = new Date()
   const quarter = `Q${Math.ceil((now.getMonth() + 1) / 3)} ${now.getFullYear()}`
   return [
@@ -385,7 +374,8 @@ function buildMacroContext(): string {
   ].join(" | ")
 }
 
-function parseRating(content: string): string | null {
+// ─── 報告解析（給 DB 用）──────────────────────────────────────────
+export function parseRating(content: string): string | null {
   const patterns = ["Strong Buy", "Strong Sell", "Buy", "Sell", "Hold"]
   for (const p of patterns) {
     if (content.includes(p)) return p
@@ -393,8 +383,7 @@ function parseRating(content: string): string | null {
   return null
 }
 
-function parseTargetPrice(content: string): { low: number | null; high: number | null } {
-  // Look for patterns like "$150-$180" or "$170"
+export function parseTargetPrice(content: string): { low: number | null; high: number | null } {
   const rangeMatch = content.match(/\$(\d+(?:\.\d+)?)\s*[-–]\s*\$(\d+(?:\.\d+)?)/)
   if (rangeMatch) {
     return { low: parseFloat(rangeMatch[1]), high: parseFloat(rangeMatch[2]) }
@@ -405,205 +394,4 @@ function parseTargetPrice(content: string): { low: number | null; high: number |
     return { low: p, high: p }
   }
   return { low: null, high: null }
-}
-
-// ─── GET — list historical reports ───────────────────────────────────────────
-
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ symbol: string }> }
-) {
-  try {
-    const { symbol: raw } = await params
-    const symbol = raw.toUpperCase()
-    if (!validateSymbol(symbol)) {
-      return Response.json({ error: "Invalid symbol", code: "INVALID_SYMBOL" }, { status: 400 })
-    }
-
-    const reports = await db
-      .select()
-      .from(analysisReports)
-      .where(eq(analysisReports.symbol, symbol))
-      .orderBy(desc(analysisReports.createdAt))
-      .limit(10)
-
-    return Response.json(reports)
-  } catch (err) {
-    console.error("[GET /api/analysis]", err)
-    return Response.json({ error: "Failed to fetch reports", code: "API_ERROR" }, { status: 500 })
-  }
-}
-
-// ─── DELETE — remove a specific report ───────────────────────────────────────
-
-export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ symbol: string }> }
-) {
-  try {
-    const { symbol: raw } = await params
-    const symbol = raw.toUpperCase()
-    if (!validateSymbol(symbol)) {
-      return Response.json({ error: "Invalid symbol" }, { status: 400 })
-    }
-
-    const url = new URL(req.url)
-    const id = parseInt(url.searchParams.get("id") ?? "")
-    if (isNaN(id)) {
-      return Response.json({ error: "Invalid id" }, { status: 400 })
-    }
-
-    await db
-      .delete(analysisReports)
-      .where(and(eq(analysisReports.id, id), eq(analysisReports.symbol, symbol)))
-
-    return Response.json({ ok: true })
-  } catch (err) {
-    console.error("[DELETE /api/analysis]", err)
-    return Response.json({ error: "Failed to delete report" }, { status: 500 })
-  }
-}
-
-// ─── POST — generate new analysis (streaming) ────────────────────────────────
-
-export async function POST(
-  _req: Request,
-  { params }: { params: Promise<{ symbol: string }> }
-) {
-  const { symbol: raw } = await params
-  const symbol = raw.toUpperCase()
-
-  if (!validateSymbol(symbol)) {
-    return Response.json({ error: "Invalid symbol", code: "INVALID_SYMBOL" }, { status: 400 })
-  }
-
-  // Rate limiting is handled by middleware.ts (3 POST requests / 60s per IP)
-
-  // Collect all context data in parallel
-  const [
-    fmpProfile, fmpQuote,
-    financialSummary, keyMetricsSummary, newsSummary, peerSummary,
-    earningsSurprises, analystConsensus, insiderTrading,
-  ] = await Promise.all([
-    getCompanyProfile(symbol).catch(() => null),
-    getQuote(symbol).catch(() => null),
-    buildFinancialSummary(symbol),
-    buildKeyMetricsSummary(symbol),
-    buildNewsSummary(symbol),
-    buildPeerSummary(symbol),
-    buildEarningsSurprisesSummary(symbol),
-    buildAnalystConsensusSummary(symbol),
-    buildInsiderTradingSummary(symbol),
-  ])
-
-  // Profile fallback to Finnhub if FMP returns nothing
-  let companyName = fmpProfile?.companyName ?? symbol
-  let price = fmpProfile?.price ?? fmpQuote?.price ?? 0
-  const marketCap = fmpProfile?.marketCap && fmpProfile.marketCap > 0
-    ? `$${(fmpProfile.marketCap / 1e9).toFixed(1)}B`
-    : "N/A"
-  const pe: number | null = fmpQuote?.pe ?? null
-  let yearHigh = fmpQuote?.yearHigh ?? 0
-  let yearLow = fmpQuote?.yearLow ?? 0
-
-  if (!fmpProfile) {
-    const fhProfile = await getFinnhubProfile(symbol).catch(() => null)
-    if (fhProfile) companyName = fhProfile.name
-    if (!fmpQuote) {
-      const fhQuote = await getFinnhubQuote(symbol).catch(() => null)
-      if (fhQuote) {
-        price = fhQuote.price
-        yearHigh = fhQuote.yearHigh
-        yearLow = fhQuote.yearLow
-      }
-    }
-  }
-
-  const range52w = yearHigh && yearLow
-    ? `$${yearLow.toFixed(2)} – $${yearHigh.toFixed(2)}`
-    : "N/A"
-
-  // P1: 52-week relative position
-  const week52Position = price > 0 && yearHigh > yearLow
-    ? `${((price - yearLow) / (yearHigh - yearLow) * 100).toFixed(0)}% 位置（距52週低 +${((price - yearLow) / yearLow * 100).toFixed(1)}%，距52週高 -${((yearHigh - price) / yearHigh * 100).toFixed(1)}%）`
-    : "N/A"
-
-  const macroContext = buildMacroContext()
-
-  const userPrompt = buildUserPrompt({
-    symbol,
-    companyName,
-    financialSummary,
-    keyMetricsSummary,
-    newsSummary,
-    peerSummary,
-    earningsSurprises,
-    analystConsensus,
-    insiderTrading,
-    price,
-    marketCap,
-    pe,
-    range52w,
-    week52Position,
-    macroContext,
-  })
-
-  let fullContent = ""
-
-  const stream = new ReadableStream({
-    async start(controller) {
-      const encoder = new TextEncoder()
-      try {
-        const claudeStream = client.messages.stream({
-          model: "claude-sonnet-4-6",
-          max_tokens: 4096,
-          system: ANALYST_SYSTEM_PROMPT,
-          messages: [{ role: "user", content: userPrompt }],
-        })
-
-        for await (const chunk of claudeStream) {
-          if (
-            chunk.type === "content_block_delta" &&
-            chunk.delta.type === "text_delta"
-          ) {
-            const text = chunk.delta.text
-            fullContent += text
-            controller.enqueue(encoder.encode(text))
-          }
-        }
-      } catch (err) {
-        console.error("[POST /api/analysis stream]", err)
-        controller.enqueue(encoder.encode("\n\n⚠️ 分析生成過程中發生錯誤，請稍後重試。"))
-      } finally {
-        // Save whatever was generated — even if stream was interrupted mid-way.
-        // Threshold: 100 chars to avoid storing bare error messages.
-        if (fullContent.length > 100) {
-          try {
-            const rating = parseRating(fullContent)
-            const { low, high } = parseTargetPrice(fullContent)
-            await db.insert(analysisReports).values({
-              symbol,
-              content: fullContent,
-              rating,
-              targetPriceLow: low,
-              targetPriceHigh: high,
-              modelVersion: "claude-sonnet-4-6",
-              promptVersion: PROMPT_VERSION,
-            })
-          } catch (dbErr) {
-            console.error("[POST /api/analysis] DB save failed:", dbErr)
-          }
-        }
-        controller.close()
-      }
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-cache",
-    },
-  })
 }

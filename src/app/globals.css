@@ -7,9 +7,12 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-serif: var(--font-source-serif), var(--font-noto-serif-tc), Georgia, serif;
+  --font-heading: var(--font-source-serif), var(--font-noto-serif-tc), Georgia, serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,24 +52,30 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  /* Claude Design palette (Anthropic brand)
+     - background: 米色 #F4EFE6
+     - foreground: 深炭 #1A1A1A
+     - brand:      珊瑚橘 #CC785C */
+  --background: #F4EFE6;
+  --foreground: #1A1A1A;
+  --brand: #CC785C;
+  --brand-foreground: #FFFFFF;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+  --primary: #1A1A1A;
+  --primary-foreground: #F4EFE6;
+  --secondary: #E8E2D5;
+  --secondary-foreground: #1A1A1A;
+  --muted: #EFE9DD;
+  --muted-foreground: #6B6357;
+  --accent: #CC785C;
+  --accent-foreground: #FFFFFF;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: #D9D2C2;
+  --input: #D9D2C2;
+  --ring: #CC785C;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -164,11 +173,11 @@
 /* Streaming dot bounce */
 .dot-bounce { animation: dot-bounce 1.2s ease-in-out infinite; }
 
-/* Custom scrollbar for dark theme */
+/* Custom scrollbar — Claude Design (light theme) */
 ::-webkit-scrollbar        { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track  { background: transparent; }
-::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.12); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+::-webkit-scrollbar-thumb  { background: rgba(26,26,26,0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(204,120,92,0.4); }
 
 /* Numbers use JetBrains Mono */
 .font-num {
@@ -182,10 +191,13 @@
   }
   body {
     @apply bg-background text-foreground;
-    background: #111111;
     min-height: 100vh;
   }
   html {
     @apply font-sans;
+  }
+  /* Claude Design — 標題用 serif 字體 */
+  h1, h2, h3, .font-serif {
+    font-family: var(--font-source-serif), var(--font-noto-serif-tc), Georgia, serif;
   }
 }

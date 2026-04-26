@@ -1,21 +1,14 @@
 "use client"
 
-import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { StockHeader } from "./StockHeader"
-import { OverviewTab } from "./OverviewTab"
-import { IncomeStatementTab } from "./IncomeStatementTab"
-import { BalanceSheetTab } from "./BalanceSheetTab"
-import { CashFlowTab } from "./CashFlowTab"
-import { KeyMetricsTab } from "./KeyMetricsTab"
 import { TradingViewWidget } from "@/components/charts/TradingViewWidget.dynamic"
 import { TradingViewTechAnalysis } from "@/components/charts/TradingViewTechAnalysis.dynamic"
-import { WallStreetAnalysis } from "@/components/analysis/WallStreetAnalysis"
-import { NewsPanel } from "@/components/analysis/NewsPanel"
 import { PeerComparison } from "./PeerComparison"
 import { ScoreCard } from "./ScoreCard"
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary"
+import { NewsPanel } from "@/components/analysis/NewsPanel"
+import { DeepAnalysisClient } from "@/app/stock/[symbol]/deep-analysis/DeepAnalysisClient"
 import type {
   FmpProfile,
   FmpIncomeStatement,
@@ -37,7 +30,6 @@ interface Props {
   symbol: string
 }
 
-// Map FMP exchange names to TradingView exchange prefix
 function getTVSymbol(symbol: string, exchange?: string): string {
   if (!exchange) return symbol
   const e = exchange.toUpperCase()
@@ -48,8 +40,6 @@ function getTVSymbol(symbol: string, exchange?: string): string {
 }
 
 export function StockDetailView({ symbol }: Props) {
-  const [period, setPeriod] = useState<"annual" | "quarterly">("annual")
-
   const { data: profile } = useQuery<FmpProfile>({
     queryKey: ["profile", symbol],
     queryFn: () =>
@@ -62,9 +52,9 @@ export function StockDetailView({ symbol }: Props) {
   })
 
   const { data: financials, isLoading: financialsLoading } = useQuery<FinancialsData>({
-    queryKey: ["financials", symbol, period],
+    queryKey: ["financials", symbol, "annual"],
     queryFn: () =>
-      fetch(`/api/financials/${symbol}?period=${period}`).then((r) => {
+      fetch(`/api/financials/${symbol}?period=annual`).then((r) => {
         if (!r.ok) throw new Error("Financials fetch failed")
         return r.json()
       }),
@@ -75,8 +65,7 @@ export function StockDetailView({ symbol }: Props) {
   const tvSymbol = getTVSymbol(symbol, profile?.exchange ?? profile?.exchangeFullName)
 
   return (
-    <div className="animate-fade-in-up flex flex-col bg-[#f7f3ee]">
-      {/* Company Header */}
+    <div className="animate-fade-in-up flex flex-col bg-background">
       <StockHeader
         profile={profile ?? null}
         symbol={symbol}
@@ -88,12 +77,9 @@ export function StockDetailView({ symbol }: Props) {
       {/* TradingView Chart + Technical Analysis */}
       <div className="mx-auto w-full max-w-screen-2xl px-6 pt-5">
         <div className="flex gap-4">
-          {/* Main chart */}
           <div className="min-w-0 flex-1">
             <TradingViewWidget symbol={tvSymbol} height={500} />
           </div>
-
-          {/* Technical Analysis sidebar — visible on xl screens */}
           <div className="hidden w-[320px] shrink-0 xl:block">
             <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-500">
               技術分析
@@ -101,8 +87,6 @@ export function StockDetailView({ symbol }: Props) {
             <TradingViewTechAnalysis symbol={tvSymbol} width={320} height={490} />
           </div>
         </div>
-
-        {/* Tech Analysis on smaller screens — below chart */}
         <div className="mt-4 xl:hidden">
           <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-stone-500">
             技術分析
@@ -111,128 +95,32 @@ export function StockDetailView({ symbol }: Props) {
         </div>
       </div>
 
-      {/* Financial Data Tabs */}
-      <main className="mx-auto w-full max-w-screen-2xl flex-1 px-6 py-6">
-        <Tabs defaultValue="overview" className="gap-0">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <TabsList className="h-auto shrink-0 flex-wrap gap-1 bg-[#e8e3db] p-1 ring-1 ring-black/[0.06]">
-              <TabsTrigger value="overview" className="text-xs">總覽</TabsTrigger>
-              <TabsTrigger value="income" className="text-xs">損益表</TabsTrigger>
-              <TabsTrigger value="balance" className="text-xs">資產負債表</TabsTrigger>
-              <TabsTrigger value="cashflow" className="text-xs">現金流量表</TabsTrigger>
-              <TabsTrigger value="metrics" className="text-xs">核心指標</TabsTrigger>
-              <TabsTrigger value="peers" className="text-xs">同業比較</TabsTrigger>
-              <TabsTrigger value="ai" className="text-xs">AI 分析</TabsTrigger>
-            </TabsList>
-
-            {/* Period toggle */}
-            <div className="flex flex-col items-end gap-1">
-              <div className="flex items-center gap-1 rounded-lg bg-black/5 p-1">
-                <button
-                  onClick={() => setPeriod("annual")}
-                  className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                    period === "annual"
-                      ? "bg-black/[0.1] text-stone-900"
-                      : "text-stone-600 hover:text-stone-600"
-                  }`}
-                >
-                  年度
-                </button>
-                <button
-                  onClick={() => setPeriod("quarterly")}
-                  className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                    period === "quarterly"
-                      ? "bg-black/[0.1] text-stone-900"
-                      : "text-stone-600 hover:text-stone-600"
-                  }`}
-                >
-                  季度
-                </button>
-              </div>
-              <p className="text-[10px] text-stone-400">
-                總覽 & 核心指標固定顯示年度數據
-              </p>
-            </div>
+      <main className="mx-auto w-full max-w-screen-2xl flex-1 space-y-10 px-6 py-8">
+        {/* 同業比較 + 綜合評分 */}
+        <section>
+          <div className="mb-4">
+            <h2 className="font-serif text-lg font-semibold text-stone-900">
+              同業比較與評分
+            </h2>
+            <p className="text-xs text-stone-500">
+              與同產業公司關鍵指標對比，自動換算 0-10 分綜合評分
+            </p>
           </div>
-
-          <TabsContent value="overview">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
             <ErrorBoundary>
-              <OverviewTab
-                financials={
-                  financials
-                    ? {
-                        income: financials.income,
-                        keyMetrics: financials.keyMetrics,
-                        ratios: financials.ratios,
-                      }
-                    : undefined
-                }
-                isLoading={financialsLoading}
-              />
+              <PeerComparison symbol={symbol} />
             </ErrorBoundary>
-          </TabsContent>
-
-          <TabsContent value="income">
-            <ErrorBoundary>
-              <IncomeStatementTab data={financials?.income ?? []} isLoading={financialsLoading} />
-            </ErrorBoundary>
-          </TabsContent>
-
-          <TabsContent value="balance">
-            <ErrorBoundary>
-              <BalanceSheetTab data={financials?.balance ?? []} isLoading={financialsLoading} />
-            </ErrorBoundary>
-          </TabsContent>
-
-          <TabsContent value="cashflow">
-            <ErrorBoundary>
-              <CashFlowTab data={financials?.cashflow ?? []} isLoading={financialsLoading} />
-            </ErrorBoundary>
-          </TabsContent>
-
-          <TabsContent value="metrics">
-            <ErrorBoundary>
-              <KeyMetricsTab
-                keyMetrics={financials?.keyMetrics ?? []}
-                ratios={financials?.ratios ?? []}
-                isLoading={financialsLoading}
-              />
-            </ErrorBoundary>
-          </TabsContent>
-
-          <TabsContent value="peers">
-            <div className="grid grid-cols-1 gap-6 py-2 xl:grid-cols-[1fr_360px]">
-              <div>
-                <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-stone-500">
-                  同業比較
-                </h3>
-                <ErrorBoundary>
-                  <PeerComparison symbol={symbol} />
-                </ErrorBoundary>
-              </div>
-              <div>
-                <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-stone-500">
-                  綜合評分
-                </h3>
-                <ErrorBoundary>
-                  <ScoreCard
-                    keyMetrics={financials?.keyMetrics ?? []}
-                    ratios={financials?.ratios ?? []}
-                    income={financials?.income}
-                    sector={profile?.sector}
-                    isLoading={financialsLoading}
-                  />
-                </ErrorBoundary>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="ai">
-            <div className="grid grid-cols-1 gap-6 py-2 xl:grid-cols-[1fr_360px]">
+            <div className="space-y-6">
               <ErrorBoundary>
-                <WallStreetAnalysis symbol={symbol} price={profile?.price} />
+                <ScoreCard
+                  keyMetrics={financials?.keyMetrics ?? []}
+                  ratios={financials?.ratios ?? []}
+                  income={financials?.income}
+                  sector={profile?.sector}
+                  isLoading={financialsLoading}
+                />
               </ErrorBoundary>
-              <div className="min-w-0">
+              <div>
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-500">
                   近期新聞
                 </h3>
@@ -241,8 +129,15 @@ export function StockDetailView({ symbol }: Props) {
                 </ErrorBoundary>
               </div>
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </section>
+
+        {/* 深度分析 — 6 位大師 + 多空辯論 + 風險辯論 + 投組整合 */}
+        <section>
+          <ErrorBoundary>
+            <DeepAnalysisClient symbol={symbol} />
+          </ErrorBoundary>
+        </section>
       </main>
     </div>
   )

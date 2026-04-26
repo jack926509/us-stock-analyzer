@@ -140,8 +140,52 @@ export function PeerComparison({ symbol }: Props) {
     return entry
   })
 
+  // 預先計算每個指標的排名，避免在 cell 渲染裡重複計算
+  const rankingsByCol = COLUMNS.map((col) => getRankings(peers, col))
+
+  // 綜合「划算度」：各指標排名平均，越小越划算（多空因素已在 higherBetter 處理）
+  const avgRanks: (number | null)[] = peers.map((_, peerIdx) => {
+    const ranks = rankingsByCol.map((arr) => arr[peerIdx]).filter((r): r is number => r != null)
+    return ranks.length === 0 ? null : ranks.reduce((a, b) => a + b, 0) / ranks.length
+  })
+  const overallRanks: (number | null)[] = (() => {
+    const indexed = avgRanks
+      .map((avg, i) => ({ avg, i }))
+      .filter((x): x is { avg: number; i: number } => x.avg != null)
+      .sort((a, b) => a.avg - b.avg)
+    const out: (number | null)[] = new Array(peers.length).fill(null)
+    indexed.forEach(({ i }, rank) => { out[i] = rank + 1 })
+    return out
+  })()
+  const bestIdx = overallRanks.indexOf(1)
+  const targetIdx = peers.findIndex((p) => p.isTarget)
+  const targetOverallRank = targetIdx >= 0 ? overallRanks[targetIdx] : null
+
   return (
     <div className="space-y-6">
+      {/* 綜合「買誰更划算」結論 — 平均所有指標排名 */}
+      {peers.length > 1 && bestIdx >= 0 && (
+        <div className="rounded-lg bg-emerald-500/10 px-4 py-3 ring-1 ring-emerald-500/25">
+          <div className="flex items-baseline justify-between gap-3">
+            <div className="text-sm">
+              <span className="text-stone-600">綜合最划算：</span>
+              <span className="font-semibold text-emerald-700">{peers[bestIdx].symbol}</span>
+              <span className="ml-1 text-stone-500">
+                （平均排名 #{avgRanks[bestIdx]!.toFixed(1)} / 共 {peers.length} 檔）
+              </span>
+            </div>
+            {targetIdx >= 0 && targetIdx !== bestIdx && targetOverallRank != null && (
+              <div className="text-xs text-stone-600">
+                {peers[targetIdx].symbol} 排名 <span className="font-semibold text-stone-900">#{targetOverallRank}</span>
+              </div>
+            )}
+          </div>
+          <p className="mt-1 text-[11px] text-stone-500">
+            排名綜合 P/E、P/B、P/S、EV/EBITDA、ROE、毛利率、營收成長 7 項指標；越前面 = 估值越合理 + 賺錢能力越強
+          </p>
+        </div>
+      )}
+
       {/* Radar Chart */}
       {peers.length > 1 && (
         <div>
@@ -213,6 +257,7 @@ export function PeerComparison({ symbol }: Props) {
                     {col.label}
                   </th>
                 ))}
+                <th className="px-3 py-2.5 text-right font-medium text-stone-600">綜合</th>
               </tr>
             </thead>
             <tbody>
@@ -280,6 +325,24 @@ export function PeerComparison({ symbol }: Props) {
                         </td>
                       )
                     })}
+                    <td className="px-3 py-2.5 text-right">
+                      {overallRanks[peerIdx] != null ? (
+                        <span
+                          className={cn(
+                            "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ring-1",
+                            overallRanks[peerIdx] === 1
+                              ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30"
+                              : overallRanks[peerIdx] === peers.length
+                              ? "bg-red-500/10 text-red-600 ring-red-500/20"
+                              : "bg-black/5 text-stone-600 ring-black/10"
+                          )}
+                        >
+                          #{overallRanks[peerIdx]}
+                        </span>
+                      ) : (
+                        <span className="text-stone-400">—</span>
+                      )}
+                    </td>
                   </tr>
                 )
               })}

@@ -55,8 +55,30 @@ export const analysisReports = sqliteTable("analysis_reports", {
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 })
 
+// 深度分析報告（多代理人辯論版）
+// sections JSON 結構：
+// {
+//   masters: { buffett, lynch, wood, burry, ackman, taleb },
+//   debate:  { bull, bear, manager },
+//   risk:    { aggressive, conservative, neutral, portfolio }
+// }
+export const deepAnalysisReports = sqliteTable("deep_analysis_reports", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  symbol: text("symbol").notNull(),
+  finalContent: text("final_content").notNull(),  // 投組經理最終整合 Markdown
+  sections: text("sections").notNull(),           // 各代理人輸出 JSON
+  rating: text("rating"),
+  targetPriceLow: real("target_price_low"),
+  targetPriceHigh: real("target_price_high"),
+  modelVersion: text("model_version").notNull(),
+  promptVersion: text("prompt_version").notNull(),
+  durationMs: integer("duration_ms"),             // 整段流程耗時，方便觀察
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+})
+
 export type Watchlist = typeof watchlist.$inferSelect
 export type NewWatchlist = typeof watchlist.$inferInsert
 export type FinancialCache = typeof financialCache.$inferSelect
 export type StockPrices = typeof stockPrices.$inferSelect
 export type AnalysisReport = typeof analysisReports.$inferSelect
+export type DeepAnalysisReport = typeof deepAnalysisReports.$inferSelect

@@ -80,13 +80,14 @@ function NewsCard({ item }: { item: NewsItem }) {
 export function NewsPanel({ symbol }: Props) {
   const [filter, setFilter] = useState<SentimentFilter>("all")
 
-  const { data: news = [], isLoading, isError } = useQuery<NewsItem[]>({
+  const { data: rawNews = [], isLoading, isError } = useQuery<NewsItem[]>({
     queryKey: ["news", symbol],
     queryFn: () => fetch(`/api/news/${symbol}`).then((r) => r.json()),
     staleTime: 30 * 60 * 1000, // 30 min
     retry: 1,
   })
 
+  const news = Array.isArray(rawNews) ? rawNews.slice(0, 5) : []
   const filtered = filter === "all" ? news : news.filter((n) => n.sentiment === filter)
 
   // Sentiment counts
@@ -106,7 +107,7 @@ export function NewsPanel({ symbol }: Props) {
     )
   }
 
-  if (isError || !Array.isArray(news)) {
+  if (isError || !Array.isArray(rawNews)) {
     return (
       <div className="flex flex-col items-center gap-2 py-10 text-center">
         <Newspaper size={24} className="text-stone-500" />

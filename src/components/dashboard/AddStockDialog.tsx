@@ -92,7 +92,7 @@ export function AddStockDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button size="sm" className="gap-1.5 bg-[#00d47e] text-black hover:bg-[#00b86d]" />
+          <Button size="sm" className="gap-1.5 bg-[#CC785C] text-white hover:bg-[#B8674F]" />
         }
       >
         <Plus size={16} />
@@ -139,7 +139,7 @@ export function AddStockDialog() {
                 className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-black/5 disabled:opacity-50"
               >
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm font-bold text-[#006e3f]">{r.symbol}</span>
+                  <span className="font-mono text-sm font-bold text-[#CC785C]">{r.symbol}</span>
                   <span className="truncate text-sm text-stone-700">{r.name}</span>
                 </div>
                 <div className="flex items-center gap-2">

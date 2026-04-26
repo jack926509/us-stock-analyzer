@@ -59,8 +59,8 @@ type SortDir = "asc" | "desc"
 function SortIcon({ active, dir }: { col: string; active: boolean; dir: SortDir }) {
   if (!active) return <ArrowUpDown size={12} className="text-stone-500" />
   return dir === "asc"
-    ? <ArrowUp size={12} className="text-[#006e3f]" />
-    : <ArrowDown size={12} className="text-[#006e3f]" />
+    ? <ArrowUp size={12} className="text-[#CC785C]" />
+    : <ArrowDown size={12} className="text-[#CC785C]" />
 }
 
 function formatMarketCap(v: number | null): string {
@@ -170,7 +170,7 @@ export function WatchlistTable({ data, isLoading }: WatchlistTableProps) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-black/[0.07] bg-[#f0ebe2]">
+    <div className="overflow-x-auto rounded-xl border border-black/[0.07] bg-card">
       <Table>
         <TableHeader>
           <TableRow className="border-black/[0.07] hover:bg-transparent">

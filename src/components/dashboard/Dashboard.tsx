@@ -6,6 +6,7 @@ import { MarketOverview } from "./MarketOverview"
 import { WatchlistTable } from "./WatchlistTable"
 import { MetricsPanel } from "./MetricsPanel"
 import { AlertBanner } from "./AlertBanner"
+import { PortfolioPanel } from "./PortfolioPanel"
 import type { FmpQuote } from "@/lib/api/fmp"
 import type { Watchlist } from "@/lib/db/schema"
 
@@ -27,7 +28,7 @@ export function Dashboard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f7f3ee]">
+    <div className="flex min-h-screen flex-col bg-background">
       <Navbar onRefresh={handleRefresh} isRefreshing={isFetching} />
 
       <main className="mx-auto w-full max-w-screen-2xl flex-1 px-6 py-6">
@@ -37,17 +38,25 @@ export function Dashboard() {
         {/* 預警 Banner */}
         <AlertBanner data={data} />
 
+        {/* 我的持股 — localStorage 追蹤未實現損益 */}
+        <div className="mt-6">
+          <PortfolioPanel />
+        </div>
+
         {/* 主內容：追蹤清單 + 側邊面板 */}
         <div className="mt-6 flex gap-6">
           {/* 追蹤清單（主區域） */}
           <div className="flex-1 min-w-0">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-medium text-stone-600">
-                追蹤清單
-                {data.length > 0 && (
-                  <span className="ml-2 text-stone-500">({data.length})</span>
-                )}
-              </h2>
+            <div className="mb-3 flex items-baseline justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-stone-900">
+                  追蹤清單
+                  {data.length > 0 && (
+                    <span className="ml-2 text-sm font-normal text-stone-500">({data.length})</span>
+                  )}
+                </h2>
+                <p className="text-xs text-stone-500">關注但未持倉的股票，每分鐘自動刷新</p>
+              </div>
             </div>
             <WatchlistTable data={data} isLoading={isLoading} />
           </div>
