@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // 設計稿 mockup（CDN React，非 production 程式碼）
     "docs/mockups/**",
+    // 已歸檔 MVP 砍掉的模組，僅供日後復原參考
+    "docs/removed/**",
   ]),
 ]);
 
