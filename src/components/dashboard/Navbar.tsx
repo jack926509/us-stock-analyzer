@@ -1,29 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { RefreshCw } from "lucide-react"
 import { AddStockDialog } from "./AddStockDialog"
 
 interface NavbarProps {
   onRefresh?: () => void
   isRefreshing?: boolean
-  /** 麵包屑模式 — 個股詳情頁顯示「‹ 儀表板 · NVDA」而不顯示 nav tabs */
+  /** 麵包屑模式 — 個股詳情頁顯示「‹ 返回 · 儀表板 · NVDA」 */
   breadcrumb?: { label: string; href?: string }[]
 }
 
-const NAV_ITEMS = [
-  { label: "儀表板", href: "/" },
-  { label: "追蹤清單", href: "/?tab=watchlist" },
-  { label: "深度分析", href: "/?tab=analysis" },
-  { label: "持股", href: "/?tab=portfolio" },
-  { label: "新聞", href: "/?tab=news" },
-] as const
-
 export function Navbar({ onRefresh, isRefreshing, breadcrumb }: NavbarProps) {
-  const pathname = usePathname()
   const router = useRouter()
-  const isDashboard = pathname === "/"
 
   if (breadcrumb && breadcrumb.length > 0) {
     return (
@@ -57,29 +47,9 @@ export function Navbar({ onRefresh, isRefreshing, breadcrumb }: NavbarProps) {
       <Link href="/" className="flex items-baseline gap-2.5">
         <span className="font-serif text-xl font-bold tracking-tight">US Stock Analyzer</span>
         <span className="hidden font-mono text-[10px] tracking-[0.1em] text-muted-foreground sm:inline">
-          v2.4 · TERMINAL
+          MVP · TERMINAL
         </span>
       </Link>
-
-      <nav className="-mb-[15px] hidden md:flex">
-        {NAV_ITEMS.map((t) => {
-          const active = isDashboard && t.href === "/"
-          return (
-            <Link
-              key={t.label}
-              href={t.href}
-              className={
-                "border-b-2 px-3.5 py-2 text-xs font-semibold transition-colors " +
-                (active
-                  ? "border-brand text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground")
-              }
-            >
-              {t.label}
-            </Link>
-          )
-        })}
-      </nav>
 
       <div className="ml-auto flex items-center gap-3">
         <span className="hidden items-center gap-1.5 rounded-md border border-hair bg-card px-3 py-1.5 font-mono text-[11px] font-semibold sm:flex">

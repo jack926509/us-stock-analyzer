@@ -9,8 +9,6 @@ interface SearchResult {
   exchange: string
 }
 
-const FUNCTION_KEYS = ["DES", "CHART", "PEERS", "NEWS", "AGENTS"] as const
-
 export function CommandLine() {
   const router = useRouter()
   const [query, setQuery] = useState("")
@@ -64,13 +62,12 @@ export function CommandLine() {
     }, 300)
   }, [query])
 
-  function navigate(symbol: string, action?: string) {
+  function navigate(symbol: string) {
     const sym = symbol.trim().toUpperCase()
     if (!sym) return
     setOpen(false)
     setQuery("")
-    if (action === "AGENTS") router.push(`/stock/${sym}/deep-analysis`)
-    else router.push(`/stock/${sym}`)
+    router.push(`/stock/${sym}`)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -97,23 +94,9 @@ export function CommandLine() {
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="輸入代號或指令... 例：NVDA  ·  TSLA DES  ·  AAPL CHART  ·  AGENT BUFFETT"
+          placeholder="輸入代號或公司名稱... 例：NVDA、TSLA、AAPL"
           className="h-full flex-1 bg-transparent px-3.5 font-mono text-[13px] text-[#F4EFE6] placeholder:text-white/40 outline-none"
         />
-        <div className="hidden h-full shrink-0 items-center gap-px p-1 sm:flex">
-          {FUNCTION_KEYS.map((k) => (
-            <button
-              key={k}
-              onClick={() => {
-                const top = results[0]?.symbol ?? query
-                navigate(top, k)
-              }}
-              className="h-full rounded px-2.5 font-mono text-[10px] font-bold tracking-[0.06em] text-[#F4EFE6] hover:bg-white/10"
-            >
-              {k} ›
-            </button>
-          ))}
-        </div>
         <div className="hidden shrink-0 px-3.5 font-mono text-[10px] text-white/50 lg:block">⌘K</div>
       </div>
 

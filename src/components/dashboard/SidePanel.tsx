@@ -62,7 +62,7 @@ export function SidePanel({ data }: SidePanelProps) {
       <p className="mt-3 text-[12.5px] leading-relaxed text-white/90">
         {brief}{" "}
         <span className="font-bold text-brand">
-          建議啟動 13 代理人深度分析以獲得質化判斷。
+          打開個股頁可由 Claude Sonnet 4.6 給出完整分析報告。
         </span>
       </p>
 
@@ -88,15 +88,15 @@ export function SidePanel({ data }: SidePanelProps) {
 
       {primarySymbol ? (
         <Link
-          href={`/stock/${primarySymbol}/deep-analysis`}
+          href={`/stock/${primarySymbol}`}
           className="mt-3.5 flex w-full items-center justify-between rounded-lg bg-brand px-3.5 py-3 text-xs font-bold tracking-[0.04em] text-white"
         >
-          <span>啟動 13 代理人深度分析</span>
+          <span>打開 {primarySymbol} 個股頁分析</span>
           <span>→</span>
         </Link>
       ) : (
         <div className="mt-3.5 rounded-lg border border-white/[0.08] bg-white/[0.05] px-3.5 py-3 text-center text-[11px] text-white/50">
-          先新增追蹤股票或持股以啟用深度分析
+          先新增追蹤股票或持股以啟用個股分析
         </div>
       )}
     </section>

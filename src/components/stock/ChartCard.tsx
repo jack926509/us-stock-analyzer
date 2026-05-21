@@ -22,8 +22,6 @@ function fVol(v: number | null | undefined): string {
   return v.toFixed(0)
 }
 
-const PERIOD_BTNS = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "5Y", "ALL"] as const
-
 export function ChartCard({ tvSymbol, quote }: Props) {
   const vwap =
     quote && quote.dayHigh && quote.dayLow && quote.price
@@ -32,43 +30,8 @@ export function ChartCard({ tvSymbol, quote }: Props) {
 
   return (
     <section className="overflow-hidden rounded-xl border border-hair bg-card">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hair-soft px-4 py-2.5 sm:px-4">
-        <div className="flex flex-wrap gap-1">
-          {PERIOD_BTNS.map((p, i) => (
-            <button
-              key={p}
-              className={
-                "rounded px-2.5 py-1.5 font-mono text-[11px] font-bold " +
-                (i === 2 ? "bg-ink text-ink-foreground" : "text-foreground hover:bg-hair-soft")
-              }
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {(["CANDLE", "LINE", "AREA"] as const).map((t, i) => (
-            <button
-              key={t}
-              className={
-                "rounded border border-hair px-2.5 py-1 font-mono text-[10px] font-bold " +
-                (i === 0 ? "bg-ink text-ink-foreground" : "hover:bg-hair-soft")
-              }
-            >
-              {t}
-            </button>
-          ))}
-          <span className="hidden h-4 w-px bg-hair sm:inline-block" />
-          {(["MA", "RSI", "VOL", "MACD"] as const).map((t) => (
-            <button
-              key={t}
-              className="rounded border border-hair px-2.5 py-1 font-mono text-[10px] font-bold hover:bg-hair-soft"
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+      <div className="border-b border-hair-soft px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+        Chart · TradingView
       </div>
 
       {/* TradingView chart */}

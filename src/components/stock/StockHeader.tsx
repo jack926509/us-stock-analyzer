@@ -1,7 +1,6 @@
 "use client"
 
-import Link from "next/link"
-import { Star, Plus, Share2, ExternalLink } from "lucide-react"
+import { ExternalLink } from "lucide-react"
 import { LogoTile } from "@/components/design/LogoTile"
 import { fmtCap, changeColor } from "@/lib/format"
 import type { Profile } from "@/types"
@@ -34,29 +33,6 @@ export function StockHeader({
 
   return (
     <>
-      {/* Action bar */}
-      <div className="flex items-center gap-5 border-b border-hair bg-background px-4 py-3 sm:px-8">
-        <Link
-          href="/"
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-        >
-          ‹ 儀表板
-        </Link>
-        <span className="text-muted-foreground/50">·</span>
-        <span className="font-mono text-xs font-bold text-foreground">{symbol}</span>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <button className="flex items-center gap-1 rounded-md border border-hair bg-card px-3 py-1.5 text-[11px] font-semibold hover:bg-paper">
-            <Star size={12} /> 加入追蹤
-          </button>
-          <button className="flex items-center gap-1 rounded-md border border-hair bg-card px-3 py-1.5 text-[11px] font-semibold hover:bg-paper">
-            <Plus size={12} /> 加入持倉
-          </button>
-          <button className="flex items-center gap-1 rounded-md border border-hair bg-card px-3 py-1.5 text-[11px] font-semibold hover:bg-paper">
-            <Share2 size={12} /> 分享
-          </button>
-        </div>
-      </div>
-
       {/* Big header */}
       <div className="border-b border-hair bg-background px-4 py-5 sm:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-[18px]">
@@ -117,29 +93,11 @@ export function StockHeader({
                   {displayChange.toFixed(2)} {displayChangePct >= 0 ? "+" : ""}
                   {displayChangePct.toFixed(2)}%
                 </div>
-                {profile?.beta !== undefined && profile.beta !== 0 && (
+                {profile?.marketCap ? (
                   <div className="mt-1 font-mono text-[11px] text-muted-foreground">
-                    BETA {profile.beta.toFixed(2)} · MCAP {fmtCap(profile.marketCap)}
+                    MCAP {fmtCap(profile.marketCap)}
                   </div>
-                )}
-              </div>
-
-              {/* PRE / POST market — 留位，未串接時顯示 placeholder */}
-              <div className="ml-auto flex gap-2">
-                {(["PRE", "POST"] as const).map((label) => (
-                  <div
-                    key={label}
-                    className="rounded-lg border border-hair bg-card px-3 py-2 text-right"
-                  >
-                    <div className="font-mono text-[9px] font-bold tracking-[0.12em] text-muted-foreground">
-                      {label} MARKET
-                    </div>
-                    <div className="mt-0.5 font-mono text-sm font-bold tabular-nums text-muted-foreground">
-                      —
-                    </div>
-                    <div className="font-mono text-[10px] text-muted-foreground">未開放</div>
-                  </div>
-                ))}
+                ) : null}
               </div>
             </div>
           </div>
