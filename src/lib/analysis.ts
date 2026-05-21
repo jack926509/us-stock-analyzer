@@ -3,6 +3,7 @@
 // 解析器（parseRating / parseTargetPrice）保留與原 Portfolio Manager 相同的字串格式。
 
 import Anthropic from "@anthropic-ai/sdk"
+import { fmtCap } from "@/lib/format"
 import type { AnalysisRating, Quote, Profile } from "@/types"
 import type { FinancialSnapshot } from "@/lib/api/finnhub"
 
@@ -62,18 +63,10 @@ interface AnalysisInput {
   snapshot: FinancialSnapshot | null
 }
 
-function fmtPct(v: number): string {
-  // Finnhub margin/return 多為小數（0.18 = 18%）或百分比（18 = 18%）— 以絕對值大小判斷
+// Finnhub margin/return 多為小數（0.18 = 18%）或百分比（18 = 18%）— 以絕對值大小判斷
+function fmtFinnhubPct(v: number): string {
   if (Math.abs(v) >= 1) return `${v.toFixed(2)}%`
   return `${(v * 100).toFixed(2)}%`
-}
-
-function fmtCap(v: number): string {
-  if (!v) return "N/A"
-  if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`
-  if (v >= 1e6) return `$${(v / 1e6).toFixed(2)}M`
-  return `$${v.toFixed(0)}`
 }
 
 function buildUserPrompt({ symbol, profile, quote, snapshot }: AnalysisInput): string {
@@ -101,21 +94,21 @@ function buildUserPrompt({ symbol, profile, quote, snapshot }: AnalysisInput): s
     : "（無資料）"
 
   const profitability = snapshot
-    ? `- ROE (TTM)：${snapshot.roeTTM ? fmtPct(snapshot.roeTTM) : "N/A"}
-- ROA (TTM)：${snapshot.roaTTM ? fmtPct(snapshot.roaTTM) : "N/A"}
-- 毛利率 (TTM)：${snapshot.grossMarginTTM ? fmtPct(snapshot.grossMarginTTM) : "N/A"}
-- 淨利率 (TTM)：${snapshot.netMarginTTM ? fmtPct(snapshot.netMarginTTM) : "N/A"}`
+    ? `- ROE (TTM)：${snapshot.roeTTM ? fmtFinnhubPct(snapshot.roeTTM) : "N/A"}
+- ROA (TTM)：${snapshot.roaTTM ? fmtFinnhubPct(snapshot.roaTTM) : "N/A"}
+- 毛利率 (TTM)：${snapshot.grossMarginTTM ? fmtFinnhubPct(snapshot.grossMarginTTM) : "N/A"}
+- 淨利率 (TTM)：${snapshot.netMarginTTM ? fmtFinnhubPct(snapshot.netMarginTTM) : "N/A"}`
     : "（無資料）"
 
   const health = snapshot
     ? `- Debt/Equity：${snapshot.debtToEquity || "N/A"}
 - Current Ratio：${snapshot.currentRatio || "N/A"}
-- 股息殖利率：${snapshot.dividendYield ? fmtPct(snapshot.dividendYield) : "N/A"}`
+- 股息殖利率：${snapshot.dividendYield ? fmtFinnhubPct(snapshot.dividendYield) : "N/A"}`
     : "（無資料）"
 
   const growth = snapshot
-    ? `- 營收 3Y CAGR：${snapshot.revenueGrowth3Y ? fmtPct(snapshot.revenueGrowth3Y) : "N/A"}
-- EPS 3Y CAGR：${snapshot.epsGrowth3Y ? fmtPct(snapshot.epsGrowth3Y) : "N/A"}`
+    ? `- 營收 3Y CAGR：${snapshot.revenueGrowth3Y ? fmtFinnhubPct(snapshot.revenueGrowth3Y) : "N/A"}
+- EPS 3Y CAGR：${snapshot.epsGrowth3Y ? fmtFinnhubPct(snapshot.epsGrowth3Y) : "N/A"}`
     : "（無資料）"
 
   return `# 分析標的：${symbol} ${name}

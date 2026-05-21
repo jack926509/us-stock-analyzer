@@ -140,20 +140,21 @@ export async function getProfile(symbol: string): Promise<Profile | null> {
 
 // ─── Market Indices ──────────────────────────────────────────────────────────
 
-const INDEX_META: Record<string, { name: string }> = {
-  SPY: { name: "S&P 500 (SPY)" },
-  QQQ: { name: "NASDAQ 100 (QQQ)" },
-  DIA: { name: "Dow Jones (DIA)" },
+// 三大指數 ETF — 顯示名稱（給 TickerBar / IndicesStrip 共用）
+export const INDEX_NAMES: Record<string, string> = {
+  SPY: "S&P 500",
+  QQQ: "NASDAQ 100",
+  DIA: "Dow Jones",
 }
 
 export async function getMarketIndices(): Promise<Quote[]> {
-  const symbols = Object.keys(INDEX_META)
+  const symbols = Object.keys(INDEX_NAMES)
   const results = await Promise.allSettled(symbols.map(getQuote))
   return results
     .map((r, i) => {
       if (r.status !== "fulfilled" || !r.value) return null
       const q = r.value
-      q.name = INDEX_META[symbols[i]]?.name ?? symbols[i]
+      q.name = INDEX_NAMES[symbols[i]] ?? symbols[i]
       return q
     })
     .filter((q): q is Quote => q !== null)

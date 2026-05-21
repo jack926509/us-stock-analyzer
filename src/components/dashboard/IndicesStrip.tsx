@@ -5,17 +5,14 @@ import { Sparkline } from "@/components/design/Sparkline"
 import { changeColor, makeSpark } from "@/lib/format"
 import type { Quote } from "@/types"
 
-const INDEX_META: Record<string, { short: string; seed: number }> = {
-  SPY: { short: "S&P 500", seed: 7 },
-  QQQ: { short: "NASDAQ 100", seed: 8 },
-  DIA: { short: "Dow Jones", seed: 9 },
+function symbolSeed(s: string): number {
+  return [...s].reduce((a, c) => a + c.charCodeAt(0), 0)
 }
 
 function IndexCard({ quote, isLast }: { quote: Quote; isLast: boolean }) {
-  const meta = INDEX_META[quote.symbol]
   const up = quote.changePercentage >= 0
   const color = changeColor(quote.changePercentage)
-  const points = makeSpark(meta?.seed ?? 1, quote.changePercentage > 0 ? 0.4 : -0.4, 0.018)
+  const points = makeSpark(symbolSeed(quote.symbol), quote.changePercentage > 0 ? 0.4 : -0.4, 0.018)
 
   return (
     <div
@@ -27,7 +24,7 @@ function IndexCard({ quote, isLast }: { quote: Quote; isLast: boolean }) {
       <div>
         <div className="flex items-baseline gap-2">
           <span className="font-mono text-sm font-bold tracking-[0.04em]">{quote.symbol}</span>
-          <span className="font-mono text-[10px] text-muted-foreground">{meta?.short ?? ""}</span>
+          <span className="font-mono text-[10px] text-muted-foreground">{quote.name}</span>
         </div>
         <div className="mt-1.5 flex items-baseline gap-2">
           <span

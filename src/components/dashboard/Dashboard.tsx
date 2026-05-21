@@ -25,7 +25,8 @@ export function Dashboard() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
   const watchlist = useMemo(() => parseWatchlist(snapshot), [snapshot])
   const symbols = useMemo(() => watchlist.map((w) => w.symbol), [watchlist])
-  const symbolKey = symbols.join(",")
+  // sort 讓 watchlist 順序變動但內容相同時不觸發新 query（穩定 cache key）
+  const symbolKey = useMemo(() => [...symbols].sort().join(","), [symbols])
 
   const { data: quotes = [], isLoading, isFetching } = useQuery<Quote[]>({
     queryKey: ["quotes", symbolKey],
