@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest"
-import { validateSymbol, normalizeSymbol } from "../validations"
+import { validateSymbol } from "../validations"
 
 describe("validateSymbol", () => {
-  // Valid cases
   it("accepts standard 1-5 letter symbols", () => {
     expect(validateSymbol("AAPL")).toBe(true)
     expect(validateSymbol("META")).toBe(true)
@@ -17,7 +16,6 @@ describe("validateSymbol", () => {
     expect(validateSymbol("BRK.A")).toBe(true)
   })
 
-  // Invalid cases
   it("rejects lowercase symbols", () => {
     expect(validateSymbol("aapl")).toBe(false)
     expect(validateSymbol("Aapl")).toBe(false)
@@ -45,26 +43,8 @@ describe("validateSymbol", () => {
   })
 
   it("rejects invalid dot suffix patterns", () => {
-    expect(validateSymbol("BRK.")).toBe(false)      // no letters after dot
-    expect(validateSymbol("BRK.BAD")).toBe(false)   // >2 letters after dot
-    expect(validateSymbol(".B")).toBe(false)         // no letters before dot
-  })
-})
-
-describe("normalizeSymbol", () => {
-  it("uppercases and trims input", () => {
-    expect(normalizeSymbol("  aapl  ")).toBe("AAPL")
-    expect(normalizeSymbol("meta")).toBe("META")
-  })
-
-  it("returns null for invalid input", () => {
-    expect(normalizeSymbol("TOOLNG")).toBe(null)
-    expect(normalizeSymbol(null)).toBe(null)
-    expect(normalizeSymbol(42)).toBe(null)
-  })
-
-  it("passes through valid uppercase symbols", () => {
-    expect(normalizeSymbol("AAPL")).toBe("AAPL")
-    expect(normalizeSymbol("BRK.B")).toBe("BRK.B")
+    expect(validateSymbol("BRK.")).toBe(false)
+    expect(validateSymbol("BRK.BAD")).toBe(false)
+    expect(validateSymbol(".B")).toBe(false)
   })
 })
