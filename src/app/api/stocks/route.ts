@@ -1,145 +1,27 @@
-import { db } from "@/lib/db"
-import { stockPrices, watchlist } from "@/lib/db/schema"
-import { getCompanyProfile, getQuote } from "@/lib/api/fmp"
-import { getFinnhubQuote, getFinnhubProfile } from "@/lib/api/finnhub"
+import { getQuotes } from "@/lib/api/finnhub"
 import { validateSymbol } from "@/lib/validations"
-import { eq, inArray } from "drizzle-orm"
-import type { FmpQuote } from "@/lib/api/fmp"
+import type { NextRequest } from "next/server"
 
-// Finnhub 優先（即時報價便宜、無每日上限），FMP 作 fallback
-// FMP quota 保留給 financial statements（250/day 珍貴）
-async function getQuoteWithFallback(symbol: string): Promise<FmpQuote | null> {
-  const fhQuote = await getFinnhubQuote(symbol)
-  if (fhQuote && fhQuote.price > 0) return fhQuote
-  return getQuote(symbol)
-}
+// GET /api/stocks?symbols=AAPL,TSLA,NVDA
+// 批次回傳指定 symbol 的最新報價，給持股與追蹤清單共用。
+// Watchlist 與 Portfolio 都改由前端 localStorage 維護，後端只回報價。
+export async function GET(req: NextRequest) {
+  const raw = req.nextUrl.searchParams.get("symbols") ?? ""
+  const symbols = raw
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter((s) => s.length > 0 && validateSymbol(s))
 
-// GET /api/stocks — 取得追蹤清單含最新報價
-export async function GET() {
+  if (symbols.length === 0) return Response.json([])
+
   try {
-    const items = await db.select().from(watchlist)
-
-    if (items.length === 0) {
-      return Response.json([])
-    }
-
-    const symbols = items.map((item) => item.symbol)
-
-    // Load SQLite price cache for fallback
-    const cachedPrices = await db
-      .select()
-      .from(stockPrices)
-      .where(inArray(stockPrices.symbol, symbols))
-    const cacheMap = new Map(cachedPrices.map((r) => [r.symbol, r]))
-
-    const quoteResults = await Promise.allSettled(symbols.map(getQuoteWithFallback))
-    const quotes = quoteResults
-      .map((r) => (r.status === "fulfilled" ? r.value : null))
-      .filter((q): q is FmpQuote => q !== null)
-      .map((q) => {
-        // Supplement 0/missing values from SQLite cache
-        const cached = cacheMap.get(q.symbol)
-        if (cached) {
-          if (!q.marketCap && cached.marketCap) q.marketCap = cached.marketCap
-          if (!q.yearHigh && cached.week52High) q.yearHigh = cached.week52High
-          if (!q.yearLow && cached.week52Low) q.yearLow = cached.week52Low
-          if (!q.pe && cached.peRatio) q.pe = cached.peRatio
-        }
-        return q
-      })
-    const quoteMap = new Map(quotes.map((q) => [q.symbol, q]))
-
-    // 更新 stock_prices 快取
-    for (const quote of quotes) {
-      await db
-        .insert(stockPrices)
-        .values({
-          symbol: quote.symbol,
-          price: quote.price,
-          changePercent: quote.changePercentage,
-          marketCap: quote.marketCap,
-          peRatio: quote.pe ?? null,
-          week52High: quote.yearHigh,
-          week52Low: quote.yearLow,
-        })
-        .onConflictDoUpdate({
-          target: stockPrices.symbol,
-          set: {
-            price: quote.price,
-            changePercent: quote.changePercentage,
-            marketCap: quote.marketCap,
-            peRatio: quote.pe ?? null,
-            week52High: quote.yearHigh,
-            week52Low: quote.yearLow,
-            updatedAt: new Date().toISOString(),
-          },
-        })
-    }
-
-    const result = items.map((item) => ({
-      ...item,
-      quote: quoteMap.get(item.symbol) ?? null,
-    }))
-
-    return Response.json(result)
+    const quotes = await getQuotes(symbols)
+    return Response.json(quotes)
   } catch (err) {
     console.error("[GET /api/stocks]", err)
-    return Response.json({ error: "Failed to fetch watchlist", code: "API_ERROR" }, { status: 500 })
-  }
-}
-
-// POST /api/stocks — 新增追蹤標的
-export async function POST(req: Request) {
-  try {
-    const body = (await req.json()) as { symbol?: unknown }
-    const raw = typeof body.symbol === "string" ? body.symbol.trim().toUpperCase() : null
-
-    if (!raw || !validateSymbol(raw)) {
-      return Response.json({ error: "Invalid stock symbol", code: "INVALID_SYMBOL" }, { status: 400 })
-    }
-
-    // 確認是否已在清單中
-    const existing = await db.select().from(watchlist).where(eq(watchlist.symbol, raw))
-    if (existing.length > 0) {
-      return Response.json({ error: "Stock already in watchlist", code: "API_ERROR" }, { status: 409 })
-    }
-
-    // FMP 優先取公司資訊，失敗時 fallback 到 Finnhub
-    const fmpProfile = await getCompanyProfile(raw)
-    let companyName = raw
-    let sector: string | null = null
-    let resolvedSymbol = raw
-
-    if (fmpProfile) {
-      companyName = fmpProfile.companyName
-      sector = fmpProfile.sector || null
-      resolvedSymbol = fmpProfile.symbol
-    } else {
-      const fhProfile = await getFinnhubProfile(raw)
-      if (fhProfile) {
-        companyName = fhProfile.name
-        sector = fhProfile.finnhubIndustry || null
-      } else {
-        // 最後確認 Finnhub 至少能取得報價
-        const quote = await getFinnhubQuote(raw)
-        if (!quote) {
-          return Response.json({ error: "Stock not found", code: "NOT_FOUND" }, { status: 404 })
-        }
-      }
-    }
-
-    const [inserted] = await db
-      .insert(watchlist)
-      .values({
-        symbol: resolvedSymbol,
-        name: companyName,
-        sector,
-      })
-      .returning()
-
-    return Response.json(inserted, { status: 201 })
-  } catch (err) {
-    console.error("[POST /api/stocks]", err)
-    return Response.json({ error: "Failed to add stock", code: "API_ERROR" }, { status: 500 })
+    return Response.json(
+      { error: "Failed to fetch quotes", code: "API_ERROR" },
+      { status: 500 }
+    )
   }
 }

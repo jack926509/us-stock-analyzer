@@ -2,17 +2,16 @@
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Trash2 } from "lucide-react"
 import { LogoTile } from "@/components/design/LogoTile"
 import { Sparkline } from "@/components/design/Sparkline"
 import { SectionHeader } from "@/components/design/SectionHeader"
 import { fmtCap, changeColor, makeSpark } from "@/lib/format"
-import type { FmpQuote } from "@/lib/api/fmp"
-import type { Watchlist } from "@/lib/db/schema"
+import { removeFromWatchlist } from "@/lib/watchlist"
+import type { Quote, WatchlistItem } from "@/types"
 
-type WatchlistEntry = Watchlist & { quote: FmpQuote | null }
+type WatchlistEntry = WatchlistItem & { quote: Quote | null }
 
 interface WatchlistSectionProps {
   data: WatchlistEntry[]
@@ -29,7 +28,6 @@ const SECTOR_FILTERS = [
 
 export function WatchlistTable({ data, isLoading }: WatchlistSectionProps) {
   const router = useRouter()
-  const queryClient = useQueryClient()
   const [filter, setFilter] = useState<(typeof SECTOR_FILTERS)[number]["id"]>("all")
   const [deleting, setDeleting] = useState<string | null>(null)
 
@@ -40,14 +38,12 @@ export function WatchlistTable({ data, isLoading }: WatchlistSectionProps) {
     )
   }, [data, filter])
 
-  async function handleDelete(e: React.MouseEvent, symbol: string) {
+  function handleDelete(e: React.MouseEvent, symbol: string) {
     e.stopPropagation()
     setDeleting(symbol)
     try {
-      const res = await fetch(`/api/stocks/${symbol}`, { method: "DELETE" })
-      if (!res.ok) throw new Error()
+      removeFromWatchlist(symbol)
       toast.success(`已移除 ${symbol}`)
-      await queryClient.invalidateQueries({ queryKey: ["watchlist"] })
     } catch {
       toast.error(`移除 ${symbol} 失敗`)
     } finally {

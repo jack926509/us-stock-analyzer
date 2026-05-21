@@ -1,5 +1,9 @@
+// Finnhub 為 MVP 唯一資料來源
+// 免費額度：60 req/分鐘
+// 端點分布：/quote · /stock/profile2 · /stock/metric · /search · /stock/financials-reported
+
 import axios from "axios"
-import type { FmpQuote } from "./fmp"
+import type { Quote, Profile } from "@/types"
 
 const BASE_URL = "https://finnhub.io/api/v1"
 
@@ -9,7 +13,9 @@ function apiKey() {
   return key
 }
 
-interface FinnhubQuote {
+// ─── Raw response shapes ─────────────────────────────────────────────────────
+
+interface FinnhubQuoteRaw {
   c: number  // current price
   d: number  // change
   dp: number // change percent
@@ -20,39 +26,47 @@ interface FinnhubQuote {
   t: number  // timestamp
 }
 
-interface FinnhubProfile {
+interface FinnhubProfileRaw {
   name: string
   ticker: string
   exchange: string
   finnhubIndustry: string
-  marketCapitalization: number // in millions
+  marketCapitalization: number // 單位：百萬美元
   logo: string
   weburl: string
+  country: string
 }
 
-interface FinnhubMetricResponse {
-  metric: {
-    "52WeekHigh"?: number
-    "52WeekLow"?: number
-    peAnnual?: number
-    peTTM?: number
-  }
+interface FinnhubMetricRaw {
+  metric: Record<string, number | null | undefined>
 }
 
-// ─── Quote ───────────────────────────────────────────────────────────────────
+interface FinnhubSearchRaw {
+  count: number
+  result: Array<{
+    description: string
+    displaySymbol: string
+    symbol: string
+    type: string
+  }>
+}
 
-export async function getFinnhubQuote(symbol: string): Promise<FmpQuote | null> {
+// ─── Quote (含 metric 補齊 52W / P/E) ─────────────────────────────────────────
+
+export async function getQuote(symbol: string): Promise<Quote | null> {
   try {
-    // Fetch quote + metrics + profile in parallel for complete data
     const [quoteRes, metricRes, profileRes] = await Promise.allSettled([
-      axios.get<FinnhubQuote>(`${BASE_URL}/quote`, {
+      axios.get<FinnhubQuoteRaw>(`${BASE_URL}/quote`, {
         params: { symbol, token: apiKey() },
+        timeout: 8000,
       }),
-      axios.get<FinnhubMetricResponse>(`${BASE_URL}/stock/metric`, {
+      axios.get<FinnhubMetricRaw>(`${BASE_URL}/stock/metric`, {
         params: { symbol, metric: "all", token: apiKey() },
+        timeout: 8000,
       }),
-      axios.get<FinnhubProfile>(`${BASE_URL}/stock/profile2`, {
+      axios.get<FinnhubProfileRaw>(`${BASE_URL}/stock/profile2`, {
         params: { symbol, token: apiKey() },
+        timeout: 8000,
       }),
     ])
 
@@ -66,26 +80,68 @@ export async function getFinnhubQuote(symbol: string): Promise<FmpQuote | null> 
       symbol,
       name: profile?.name ?? symbol,
       price: quote.c,
-      changePercentage: quote.dp,
       change: quote.d,
+      changePercentage: quote.dp,
       dayLow: quote.l,
       dayHigh: quote.h,
-      yearHigh: metric?.["52WeekHigh"] ?? 0,
-      yearLow: metric?.["52WeekLow"] ?? 0,
-      // Finnhub marketCapitalization is in millions USD
-      marketCap: profile?.marketCapitalization ? profile.marketCapitalization * 1_000_000 : 0,
-      exchange: profile?.exchange ?? "",
+      yearHigh: Number(metric?.["52WeekHigh"] ?? 0),
+      yearLow: Number(metric?.["52WeekLow"] ?? 0),
+      marketCap: profile?.marketCapitalization
+        ? profile.marketCapitalization * 1_000_000
+        : 0,
       open: quote.o,
       previousClose: quote.pc,
       volume: 0,
-      pe: metric?.peTTM ?? metric?.peAnnual ?? undefined,
+      pe: Number(metric?.peTTM ?? metric?.peAnnual ?? 0) || undefined,
+      exchange: profile?.exchange ?? "",
     }
   } catch {
     return null
   }
 }
 
-// ─── Market Indices ───────────────────────────────────────────────────────────
+// ─── Profile ─────────────────────────────────────────────────────────────────
+
+export async function getProfile(symbol: string): Promise<Profile | null> {
+  try {
+    const [profileRes, quoteRes] = await Promise.all([
+      axios.get<FinnhubProfileRaw>(`${BASE_URL}/stock/profile2`, {
+        params: { symbol, token: apiKey() },
+        timeout: 8000,
+      }),
+      axios.get<FinnhubQuoteRaw>(`${BASE_URL}/quote`, {
+        params: { symbol, token: apiKey() },
+        timeout: 8000,
+      }),
+    ])
+
+    const p = profileRes.data
+    const q = quoteRes.data
+    if (!p?.ticker) return null
+
+    return {
+      symbol: p.ticker,
+      companyName: p.name,
+      sector: p.finnhubIndustry || "",
+      industry: p.finnhubIndustry || "",
+      exchange: p.exchange || "",
+      exchangeFullName: p.exchange || "",
+      description: "",
+      image: p.logo || "",
+      website: p.weburl || "",
+      marketCap: (p.marketCapitalization ?? 0) * 1_000_000,
+      beta: 0,
+      price: q?.c ?? 0,
+      change: q?.d ?? 0,
+      changePercentage: q?.dp ?? 0,
+      country: p.country || "",
+    }
+  } catch {
+    return null
+  }
+}
+
+// ─── Market Indices ──────────────────────────────────────────────────────────
 
 const INDEX_META: Record<string, { name: string }> = {
   SPY: { name: "S&P 500 (SPY)" },
@@ -93,9 +149,9 @@ const INDEX_META: Record<string, { name: string }> = {
   DIA: { name: "Dow Jones (DIA)" },
 }
 
-export async function getFinnhubMarketIndices(): Promise<FmpQuote[]> {
-  const symbols = ["SPY", "QQQ", "DIA"]
-  const results = await Promise.allSettled(symbols.map((s) => getFinnhubQuote(s)))
+export async function getMarketIndices(): Promise<Quote[]> {
+  const symbols = Object.keys(INDEX_META)
+  const results = await Promise.allSettled(symbols.map(getQuote))
   return results
     .map((r, i) => {
       if (r.status !== "fulfilled" || !r.value) return null
@@ -103,139 +159,24 @@ export async function getFinnhubMarketIndices(): Promise<FmpQuote[]> {
       q.name = INDEX_META[symbols[i]]?.name ?? symbols[i]
       return q
     })
-    .filter((q): q is FmpQuote => q !== null)
+    .filter((q): q is Quote => q !== null)
 }
 
-// ─── Financial Metrics (fallback for FmpKeyMetrics + FmpRatios) ──────────────
+// ─── Symbol Search (含 fallback 至 symbol-only profile 查) ────────────────────
 
-import type { FmpKeyMetrics, FmpRatios } from "./fmp"
-
-interface FinnhubMetricAll {
-  [key: string]: number | null | undefined
-}
-
-export async function getFinnhubKeyMetrics(symbol: string): Promise<{
-  keyMetrics: FmpKeyMetrics | null
-  ratios: FmpRatios | null
-}> {
-  try {
-    const { data } = await axios.get<{ metric: FinnhubMetricAll }>(`${BASE_URL}/stock/metric`, {
-      params: { symbol, metric: "all", token: apiKey() },
-      timeout: 8000,
-    })
-    const m = data?.metric
-    if (!m) return { keyMetrics: null, ratios: null }
-
-    const n = (v: unknown) => {
-      const x = Number(v)
-      return v != null && !isNaN(x) && isFinite(x) ? x : 0
-    }
-    // Finnhub margin/ratio fields are in percentage (0–100); FMP uses decimal (0–1)
-    const pctToDecimal = (v: unknown) => {
-      const x = Number(v)
-      return v != null && !isNaN(x) && isFinite(x) ? x / 100 : 0
-    }
-
-    // Helper: try multiple key variants, return first non-zero result
-    const first = (...keys: string[]) => {
-      for (const k of keys) {
-        const v = pctToDecimal(m[k])
-        if (v !== 0) return v
-      }
-      return 0
-    }
-    const firstN = (...keys: string[]) => {
-      for (const k of keys) {
-        const v = n(m[k])
-        if (v !== 0) return v
-      }
-      return 0
-    }
-
-    const keyMetrics: FmpKeyMetrics = {
-      date: new Date().toISOString().slice(0, 10),
-      symbol,
-      revenuePerShare: firstN("revenuePerShareAnnual", "revenuePerShareTTM"),
-      netIncomePerShare: firstN("epsBasicExclExtraItemsAnnual", "epsNormalizedAnnual"),
-      roe: first("roeTTM", "roeAnnual"),
-      roa: first("roaTTM", "roaAnnual"),
-      roic: first("roiTTM", "roiAnnual"),
-      debtToEquity: firstN("totalDebt/totalEquityAnnual", "ltDebt/equityAnnual"),
-      currentRatio: firstN("currentRatioAnnual", "currentRatioQuarterly"),
-      quickRatio: firstN("quickRatioAnnual", "quickRatioQuarterly"),
-      peRatio: firstN("peTTM", "peAnnual", "peNormalizedAnnual"),
-      pbRatio: firstN("pbAnnual", "pbQuarterly"),
-      psRatio: firstN("psTTM", "psAnnual"),
-      evToEbitda: 0,
-      pegRatio: 0,
-      freeCashFlowYield: 0,
-      earningsYield: firstN("peTTM", "peAnnual") > 0 ? 1 / firstN("peTTM", "peAnnual") : 0,
-      dividendYield: first("currentDividendYieldTTM"),
-    }
-
-    const ratios: FmpRatios = {
-      date: new Date().toISOString().slice(0, 10),
-      symbol,
-      grossProfitMargin: first("grossMarginTTM", "grossMarginAnnual"),
-      operatingProfitMargin: first("operatingMarginTTM", "operatingMarginAnnual"),
-      netProfitMargin: first("netMarginTTM", "netMarginAnnual", "pretaxMarginTTM"),
-      returnOnEquity: first("roeTTM", "roeAnnual"),
-      returnOnAssets: first("roaTTM", "roaAnnual"),
-      currentRatio: firstN("currentRatioAnnual", "currentRatioQuarterly"),
-      quickRatio: firstN("quickRatioAnnual", "quickRatioQuarterly"),
-      debtEquityRatio: firstN("totalDebt/totalEquityAnnual"),
-      interestCoverage: firstN("netInterestCoverageAnnual", "netInterestCoverageTTM"),
-      priceToEarningsRatio: firstN("peTTM", "peAnnual"),
-      priceToBookRatioTTM: firstN("pbAnnual", "pbQuarterly"),
-      priceToSalesRatioTTM: firstN("psTTM", "psAnnual"),
-      enterpriseValueMultiple: 0,
-      returnOnCapitalEmployed: first("roiTTM", "roiAnnual"),
-    }
-
-    return { keyMetrics, ratios }
-  } catch {
-    return { keyMetrics: null, ratios: null }
-  }
-}
-
-// ─── Stock Peers (industry-level) ─────────────────────────────────────────────
-
-export async function getFinnhubPeers(symbol: string): Promise<string[]> {
-  try {
-    const { data } = await axios.get<string[]>(`${BASE_URL}/stock/peers`, {
-      params: { symbol, token: apiKey() },
-      timeout: 6000,
-    })
-    return Array.isArray(data) ? data.filter((s) => s !== symbol).slice(0, 8) : []
-  } catch {
-    return []
-  }
-}
-
-// ─── Symbol Search ────────────────────────────────────────────────────────────
-
-interface FinnhubSearchResult {
-  description: string
-  displaySymbol: string
-  symbol: string
-  type: string
-}
-
-interface FinnhubSearchResponse {
-  count: number
-  result: FinnhubSearchResult[]
-}
-
-export async function searchFinnhubSymbols(query: string): Promise<Array<{
+export interface SearchHit {
   symbol: string
   name: string
   currency: string
   exchange: string
   exchangeFullName: string
-}>> {
+}
+
+export async function searchSymbols(query: string): Promise<SearchHit[]> {
   try {
-    const { data } = await axios.get<FinnhubSearchResponse>(`${BASE_URL}/search`, {
+    const { data } = await axios.get<FinnhubSearchRaw>(`${BASE_URL}/search`, {
       params: { q: query, exchange: "US", token: apiKey() },
+      timeout: 6000,
     })
     if (!Array.isArray(data?.result)) return []
     return data.result
@@ -253,14 +194,76 @@ export async function searchFinnhubSymbols(query: string): Promise<Array<{
   }
 }
 
-// ─── Company Profile (as fallback) ───────────────────────────────────────────
+// ─── Batch Quotes（追蹤清單 / 持股用） ────────────────────────────────────────
 
-export async function getFinnhubProfile(symbol: string): Promise<FinnhubProfile | null> {
+export async function getQuotes(symbols: string[]): Promise<Quote[]> {
+  const results = await Promise.allSettled(symbols.map(getQuote))
+  return results
+    .map((r) => (r.status === "fulfilled" ? r.value : null))
+    .filter((q): q is Quote => q !== null)
+}
+
+// ─── 給 AI 分析用的精簡基本面摘要 ─────────────────────────────────────────────
+
+export interface FinancialSnapshot {
+  symbol: string
+  // 估值
+  peTTM: number
+  peAnnual: number
+  pbAnnual: number
+  psTTM: number
+  // 獲利能力
+  roeTTM: number
+  roaTTM: number
+  netMarginTTM: number
+  grossMarginTTM: number
+  // 財務健康
+  debtToEquity: number
+  currentRatio: number
+  // 成長
+  revenueGrowth3Y: number
+  epsGrowth3Y: number
+  // 規模
+  marketCap: number
+  // 區間
+  week52High: number
+  week52Low: number
+  dividendYield: number
+}
+
+export async function getFinancialSnapshot(symbol: string): Promise<FinancialSnapshot | null> {
   try {
-    const { data } = await axios.get<FinnhubProfile>(`${BASE_URL}/stock/profile2`, {
-      params: { symbol, token: apiKey() },
+    const { data } = await axios.get<FinnhubMetricRaw>(`${BASE_URL}/stock/metric`, {
+      params: { symbol, metric: "all", token: apiKey() },
+      timeout: 8000,
     })
-    return data.ticker ? data : null
+    const m = data?.metric
+    if (!m) return null
+
+    const n = (v: unknown) => {
+      const x = Number(v)
+      return v != null && !isNaN(x) && isFinite(x) ? x : 0
+    }
+
+    return {
+      symbol,
+      peTTM: n(m.peTTM),
+      peAnnual: n(m.peAnnual),
+      pbAnnual: n(m.pbAnnual),
+      psTTM: n(m.psTTM),
+      roeTTM: n(m.roeTTM),
+      roaTTM: n(m.roaTTM),
+      netMarginTTM: n(m.netMarginTTM),
+      grossMarginTTM: n(m.grossMarginTTM),
+      debtToEquity: n(m["totalDebt/totalEquityAnnual"]),
+      currentRatio: n(m.currentRatioAnnual),
+      revenueGrowth3Y: n(m.revenueGrowth3Y),
+      epsGrowth3Y: n(m.epsGrowth3Y),
+      marketCap: n(m.marketCapitalization) * 1_000_000,
+      week52High: n(m["52WeekHigh"]),
+      week52Low: n(m["52WeekLow"]),
+      dividendYield: n(m.currentDividendYieldTTM),
+    }
   } catch {
     return null
   }

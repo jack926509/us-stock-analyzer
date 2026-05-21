@@ -4,10 +4,10 @@ import Link from "next/link"
 import { Star, Plus, Share2, ExternalLink } from "lucide-react"
 import { LogoTile } from "@/components/design/LogoTile"
 import { fmtCap, changeColor } from "@/lib/format"
-import type { FmpProfile } from "@/lib/api/fmp"
+import type { Profile } from "@/types"
 
 interface StockHeaderProps {
-  profile: FmpProfile | null
+  profile: Profile | null
   symbol: string
   price?: number
   changePercentage?: number

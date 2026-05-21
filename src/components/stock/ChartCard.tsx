@@ -2,11 +2,11 @@
 
 import { TradingViewWidget } from "@/components/charts/TradingViewWidget.dynamic"
 import { TradingViewTechAnalysis } from "@/components/charts/TradingViewTechAnalysis.dynamic"
-import type { FmpQuote } from "@/lib/api/fmp"
+import type { Quote } from "@/types"
 
 interface Props {
   tvSymbol: string
-  quote?: FmpQuote | null
+  quote?: Quote | null
 }
 
 function f2(v: number | null | undefined): string {

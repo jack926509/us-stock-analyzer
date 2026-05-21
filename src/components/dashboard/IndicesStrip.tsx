@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { Sparkline } from "@/components/design/Sparkline"
 import { changeColor, makeSpark } from "@/lib/format"
-import type { FmpQuote } from "@/lib/api/fmp"
+import type { Quote } from "@/types"
 
 const INDEX_META: Record<string, { short: string; seed: number }> = {
   SPY: { short: "S&P 500", seed: 7 },
@@ -11,7 +11,7 @@ const INDEX_META: Record<string, { short: string; seed: number }> = {
   DIA: { short: "Dow Jones", seed: 9 },
 }
 
-function IndexCard({ quote, isLast }: { quote: FmpQuote; isLast: boolean }) {
+function IndexCard({ quote, isLast }: { quote: Quote; isLast: boolean }) {
   const meta = INDEX_META[quote.symbol]
   const up = quote.changePercentage >= 0
   const color = changeColor(quote.changePercentage)
@@ -74,7 +74,7 @@ function IndexCardSkeleton({ isLast }: { isLast: boolean }) {
 }
 
 export function IndicesStrip() {
-  const { data, isLoading } = useQuery<FmpQuote[]>({
+  const { data, isLoading } = useQuery<Quote[]>({
     queryKey: ["market-indices"],
     queryFn: () => fetch("/api/market").then((r) => r.json()),
     staleTime: 60 * 1000,

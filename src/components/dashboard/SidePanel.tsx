@@ -1,10 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import type { FmpQuote } from "@/lib/api/fmp"
-import type { Watchlist } from "@/lib/db/schema"
+import type { Quote } from "@/types"
+import type { WatchlistItem } from "@/types"
 
-type WatchlistEntry = Watchlist & { quote: FmpQuote | null }
+type WatchlistEntry = WatchlistItem & { quote: Quote | null }
 
 interface SidePanelProps {
   data: WatchlistEntry[]
@@ -13,7 +13,7 @@ interface SidePanelProps {
 // 黑卡 AI Brief — v2 設計的右欄主視覺
 export function SidePanel({ data }: SidePanelProps) {
   const withQuotes = data.filter(
-    (d): d is WatchlistEntry & { quote: FmpQuote } => d.quote !== null,
+    (d): d is WatchlistEntry & { quote: Quote } => d.quote !== null,
   )
 
   const buys = withQuotes.filter((d) => d.quote.changePercentage >= 1.5).length

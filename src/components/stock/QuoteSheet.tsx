@@ -2,11 +2,11 @@
 
 import { SectionHeader } from "@/components/design/SectionHeader"
 import { fmtCap } from "@/lib/format"
-import type { FmpProfile, FmpQuote } from "@/lib/api/fmp"
+import type { Profile, Quote } from "@/types"
 
 interface Props {
-  profile: FmpProfile | null
-  quote?: FmpQuote | null
+  profile: Profile | null
+  quote?: Quote | null
 }
 
 function f2(v: number | null | undefined): string {

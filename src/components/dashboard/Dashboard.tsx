@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo, useSyncExternalStore } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { TickerBar } from "@/components/design/TickerBar"
 import { CommandLine } from "@/components/design/CommandLine"
@@ -9,25 +10,41 @@ import { PortfolioHero } from "./PortfolioHero"
 import { HoldingsTable } from "./HoldingsTable"
 import { SidePanel } from "./SidePanel"
 import { WatchlistTable } from "./WatchlistTable"
-import { SectorBreakdown } from "./SectorBreakdown"
-import { NewsRail } from "./NewsRail"
-import type { FmpQuote } from "@/lib/api/fmp"
-import type { Watchlist } from "@/lib/db/schema"
+import {
+  getServerSnapshot,
+  getSnapshot,
+  parseWatchlist,
+  subscribe,
+} from "@/lib/watchlist"
+import type { Quote, WatchlistItem } from "@/types"
 
-type WatchlistEntry = Watchlist & { quote: FmpQuote | null }
+type WatchlistEntry = WatchlistItem & { quote: Quote | null }
 
 export function Dashboard() {
   const queryClient = useQueryClient()
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  const watchlist = useMemo(() => parseWatchlist(snapshot), [snapshot])
+  const symbols = useMemo(() => watchlist.map((w) => w.symbol), [watchlist])
+  const symbolKey = symbols.join(",")
 
-  const { data = [], isLoading, isFetching } = useQuery<WatchlistEntry[]>({
-    queryKey: ["watchlist"],
-    queryFn: () => fetch("/api/stocks").then((r) => r.json()),
+  const { data: quotes = [], isLoading, isFetching } = useQuery<Quote[]>({
+    queryKey: ["quotes", symbolKey],
+    queryFn: () =>
+      symbolKey
+        ? fetch(`/api/stocks?symbols=${encodeURIComponent(symbolKey)}`).then((r) => r.json())
+        : Promise.resolve([]),
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
+    enabled: symbols.length > 0,
   })
 
+  const data: WatchlistEntry[] = useMemo(() => {
+    const map = new Map(quotes.map((q) => [q.symbol, q]))
+    return watchlist.map((w) => ({ ...w, quote: map.get(w.symbol) ?? null }))
+  }, [watchlist, quotes])
+
   function handleRefresh() {
-    void queryClient.invalidateQueries({ queryKey: ["watchlist"] })
+    void queryClient.invalidateQueries({ queryKey: ["quotes"] })
     void queryClient.invalidateQueries({ queryKey: ["market-indices"] })
   }
 
@@ -48,8 +65,6 @@ export function Dashboard() {
           </div>
           <aside className="flex flex-col gap-5">
             <SidePanel data={data} />
-            <SectorBreakdown data={data} />
-            <NewsRail />
           </aside>
         </div>
       </main>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import type { FmpQuote } from "@/lib/api/fmp"
+import type { Quote } from "@/types"
 
 interface TickerItem {
   sym: string
@@ -42,7 +42,7 @@ export function TickerBar() {
     return () => clearInterval(id)
   }, [])
 
-  const { data } = useQuery<FmpQuote[]>({
+  const { data } = useQuery<Quote[]>({
     queryKey: ["market-indices"],
     queryFn: () => fetch("/api/market").then((r) => r.json()),
     staleTime: 60 * 1000,

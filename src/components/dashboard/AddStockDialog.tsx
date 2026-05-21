@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Search, Plus, Loader2 } from "lucide-react"
 import {
@@ -14,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { addToWatchlist, getWatchlist } from "@/lib/watchlist"
 
 interface SearchResult {
   symbol: string
@@ -28,7 +28,6 @@ export function AddStockDialog() {
   const [searching, setSearching] = useState(false)
   const [adding, setAdding] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const queryClient = useQueryClient()
 
   useEffect(() => {
     if (!open) {
@@ -58,31 +57,30 @@ export function AddStockDialog() {
     }, 400)
   }, [query])
 
-  async function handleAdd(symbol: string) {
-    setAdding(symbol)
+  async function handleAdd(item: SearchResult) {
+    setAdding(item.symbol)
     try {
-      const res = await fetch("/api/stocks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol }),
-      })
-
-      if (res.status === 409) {
-        toast.warning(`${symbol} 已在追蹤清單中`)
+      const upper = item.symbol.toUpperCase()
+      if (getWatchlist().some((w) => w.symbol === upper)) {
+        toast.warning(`${upper} 已在追蹤清單中`)
         return
       }
 
-      if (!res.ok) {
-        const err = (await res.json()) as { error?: string }
-        toast.error(err.error ?? "新增失敗")
-        return
-      }
+      // 用 profile 補上 sector，失敗也不擋下加入
+      let sector: string | null = null
+      try {
+        const res = await fetch(`/api/profile/${upper}`)
+        if (res.ok) {
+          const profile = (await res.json()) as { sector?: string }
+          sector = profile.sector || null
+        }
+      } catch { /* ignore */ }
 
-      toast.success(`已加入追蹤：${symbol}`)
-      await queryClient.invalidateQueries({ queryKey: ["watchlist"] })
+      addToWatchlist({ symbol: upper, name: item.name, sector })
+      toast.success(`已加入追蹤：${upper}`)
       setOpen(false)
     } catch {
-      toast.error("網路錯誤，請稍後再試")
+      toast.error("新增失敗，請稍後再試")
     } finally {
       setAdding(null)
     }
@@ -134,7 +132,7 @@ export function AddStockDialog() {
             results.map((r) => (
               <button
                 key={r.symbol}
-                onClick={() => handleAdd(r.symbol)}
+                onClick={() => handleAdd(r)}
                 disabled={adding === r.symbol}
                 className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-black/5 disabled:opacity-50"
               >
