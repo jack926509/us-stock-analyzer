@@ -10,19 +10,6 @@ interface TickerItem {
   d: number
 }
 
-// 非美股三指數的部分先用 mock — 等接 Finnhub/外部 commodity feed 後再換
-const SUPPLEMENTARY: TickerItem[] = [
-  { sym: "VIX", v: 14.82, d: -3.21 },
-  { sym: "US10Y", v: 4.218, d: 0.04 },
-  { sym: "BTC", v: 92341, d: 1.24 },
-  { sym: "ETH", v: 3284, d: 0.81 },
-  { sym: "GOLD", v: 2814, d: 0.42 },
-  { sym: "WTI", v: 71.34, d: -0.81 },
-  { sym: "DXY", v: 104.21, d: 0.12 },
-  { sym: "EURUSD", v: 1.0842, d: -0.08 },
-  { sym: "USDJPY", v: 154.21, d: 0.34 },
-]
-
 function nowEDT(): string {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
@@ -49,13 +36,12 @@ export function TickerBar() {
     refetchInterval: 60 * 1000,
   })
 
-  const indices: TickerItem[] = (Array.isArray(data) ? data : []).map((q) => ({
+  const items: TickerItem[] = (Array.isArray(data) ? data : []).map((q) => ({
     sym: q.symbol,
     v: q.price,
     d: q.changePercentage,
   }))
 
-  const items = [...indices, ...SUPPLEMENTARY]
   if (items.length === 0) return null
 
   // 軌道複製兩份做無縫循環

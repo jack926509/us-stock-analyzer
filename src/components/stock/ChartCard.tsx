@@ -14,14 +14,6 @@ function f2(v: number | null | undefined): string {
   return v.toFixed(2)
 }
 
-function fVol(v: number | null | undefined): string {
-  if (v == null || isNaN(v)) return "—"
-  if (v >= 1e9) return (v / 1e9).toFixed(1) + "B"
-  if (v >= 1e6) return (v / 1e6).toFixed(1) + "M"
-  if (v >= 1e3) return (v / 1e3).toFixed(0) + "K"
-  return v.toFixed(0)
-}
-
 export function ChartCard({ tvSymbol, quote }: Props) {
   const vwap =
     quote && quote.dayHigh && quote.dayLow && quote.price
@@ -48,14 +40,13 @@ export function ChartCard({ tvSymbol, quote }: Props) {
       </div>
 
       {/* OHLC strip */}
-      <div className="grid grid-cols-4 gap-x-3 gap-y-2.5 border-t border-hair-soft bg-black/[0.02] px-4 py-2.5 sm:grid-cols-8 sm:px-[18px]">
+      <div className="grid grid-cols-4 gap-x-3 gap-y-2.5 border-t border-hair-soft bg-black/[0.02] px-4 py-2.5 sm:grid-cols-7 sm:px-[18px]">
         {[
           ["OPEN", f2(quote?.open)],
           ["HIGH", f2(quote?.dayHigh)],
           ["LOW", f2(quote?.dayLow)],
           ["CLOSE", f2(quote?.price)],
           ["VWAP", f2(vwap)],
-          ["VOL", fVol(quote?.volume)],
           ["52W H", f2(quote?.yearHigh)],
           ["52W L", f2(quote?.yearLow)],
         ].map(([l, v]) => (

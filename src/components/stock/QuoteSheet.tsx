@@ -14,12 +14,7 @@ function f2(v: number | null | undefined): string {
   return v.toFixed(2)
 }
 
-function fInt(v: number | null | undefined): string {
-  if (v == null || isNaN(v)) return "—"
-  return v.toLocaleString()
-}
-
-// Bloomberg DES (Description) 風格報價單 — 兩欄 label / value 16 列
+// Bloomberg DES (Description) 風格報價單
 export function QuoteSheet({ profile, quote }: Props) {
   const rows: Array<[string, string]> = [
     ["OPEN", f2(quote?.open)],
@@ -29,9 +24,7 @@ export function QuoteSheet({ profile, quote }: Props) {
     ["52W HIGH", f2(quote?.yearHigh)],
     ["52W LOW", f2(quote?.yearLow)],
     ["MARKET CAP", profile?.marketCap ? fmtCap(profile.marketCap) : "—"],
-    ["VOLUME", quote?.volume ? fInt(quote.volume) : "—"],
     ["EXCHANGE", profile?.exchange ?? quote?.exchange ?? "—"],
-    ["BETA (5Y)", profile?.beta ? f2(profile.beta) : "—"],
     ["P/E TTM", quote?.pe ? f2(quote.pe) : "—"],
     ["SECTOR", profile?.sector ?? "—"],
     ["INDUSTRY", profile?.industry ?? "—"],

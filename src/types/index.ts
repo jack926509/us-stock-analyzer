@@ -13,7 +13,6 @@ export interface Quote {
   marketCap: number
   open: number
   previousClose: number
-  volume: number
   pe?: number
   exchange: string
 }
@@ -25,11 +24,9 @@ export interface Profile {
   industry: string
   exchange: string
   exchangeFullName: string
-  description: string
   image: string
   website: string
   marketCap: number
-  beta: number
   price: number
   change: number
   changePercentage: number
