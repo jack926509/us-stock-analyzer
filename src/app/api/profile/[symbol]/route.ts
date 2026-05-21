@@ -1,13 +1,12 @@
 import { getProfile } from "@/lib/api/finnhub"
 import { validateSymbol } from "@/lib/validations"
-import type { NextRequest } from "next/server"
 
 export async function GET(
-  _req: NextRequest,
-  ctx: RouteContext<"/api/profile/[symbol]">
+  _req: Request,
+  { params }: { params: Promise<{ symbol: string }> }
 ) {
   try {
-    const { symbol: raw } = await ctx.params
+    const { symbol: raw } = await params
     const symbol = raw.toUpperCase()
 
     if (!validateSymbol(symbol)) {
