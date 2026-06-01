@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Search, Plus, Loader2 } from "lucide-react"
 import {
@@ -14,76 +14,27 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { addToWatchlist, getWatchlist } from "@/lib/watchlist"
-
-interface SearchResult {
-  symbol: string
-  name: string
-  exchange: string
-}
+import { useSymbolSearch, type SearchResult } from "@/hooks/useSymbolSearch"
 
 export function AddStockDialog() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
-  const [results, setResults] = useState<SearchResult[]>([])
-  const [searching, setSearching] = useState(false)
-  const [adding, setAdding] = useState<string | null>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { results, searching } = useSymbolSearch(query, { debounceMs: 400 })
 
   useEffect(() => {
-    if (!open) {
-      setQuery("")
-      setResults([])
-    }
+    if (!open) setQuery("")
   }, [open])
 
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (!query.trim()) {
-      setResults([])
+  function handleAdd(item: SearchResult) {
+    const upper = item.symbol.toUpperCase()
+    if (getWatchlist().some((w) => w.symbol === upper)) {
+      toast.warning(`${upper} 已在追蹤清單中`)
       return
     }
-
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true)
-      try {
-        const res = await fetch(`/api/stocks/search?q=${encodeURIComponent(query)}`)
-        const data = (await res.json()) as SearchResult[]
-        setResults(Array.isArray(data) ? data : [])
-      } catch {
-        setResults([])
-      } finally {
-        setSearching(false)
-      }
-    }, 400)
-  }, [query])
-
-  async function handleAdd(item: SearchResult) {
-    setAdding(item.symbol)
-    try {
-      const upper = item.symbol.toUpperCase()
-      if (getWatchlist().some((w) => w.symbol === upper)) {
-        toast.warning(`${upper} 已在追蹤清單中`)
-        return
-      }
-
-      // 用 profile 補上 sector，失敗也不擋下加入
-      let sector: string | null = null
-      try {
-        const res = await fetch(`/api/profile/${upper}`)
-        if (res.ok) {
-          const profile = (await res.json()) as { sector?: string }
-          sector = profile.sector || null
-        }
-      } catch { /* ignore */ }
-
-      addToWatchlist({ symbol: upper, name: item.name, sector })
-      toast.success(`已加入追蹤：${upper}`)
-      setOpen(false)
-    } catch {
-      toast.error("新增失敗，請稍後再試")
-    } finally {
-      setAdding(null)
-    }
+    // sector 由後續 quote/profile 回流時補；先快速加入，不擋 UX
+    addToWatchlist({ symbol: upper, name: item.name, sector: null })
+    toast.success(`已加入追蹤：${upper}`)
+    setOpen(false)
   }
 
   return (
@@ -133,8 +84,7 @@ export function AddStockDialog() {
               <button
                 key={r.symbol}
                 onClick={() => handleAdd(r)}
-                disabled={adding === r.symbol}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-black/5 disabled:opacity-50"
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-black/5"
               >
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-sm font-bold text-[#CC785C]">{r.symbol}</span>
@@ -144,11 +94,7 @@ export function AddStockDialog() {
                   <Badge variant="outline" className="border-black/[0.12] text-xs text-stone-600">
                     {r.exchange}
                   </Badge>
-                  {adding === r.symbol ? (
-                    <Loader2 size={14} className="animate-spin text-muted-foreground" />
-                  ) : (
-                    <Plus size={14} className="text-muted-foreground" />
-                  )}
+                  <Plus size={14} className="text-muted-foreground" />
                 </div>
               </button>
             ))}

@@ -191,3 +191,24 @@ export async function runAnalysis(input: AnalysisInput): Promise<string> {
 
   return text
 }
+
+export async function runAnalysisStream(
+  input: AnalysisInput,
+  onText: (delta: string) => void,
+): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set")
+
+  const client = new Anthropic({ apiKey })
+  const userPrompt = buildUserPrompt(input)
+
+  const stream = client.messages.stream({
+    model: MODEL,
+    max_tokens: 4096,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userPrompt }],
+  })
+
+  stream.on("text", (delta) => onText(delta))
+  return stream.finalText()
+}

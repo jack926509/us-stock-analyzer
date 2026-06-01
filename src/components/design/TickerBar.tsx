@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import type { Quote } from "@/types"
 
@@ -58,9 +59,10 @@ export function TickerBar() {
           {track.map((it, i) => {
             const up = it.d >= 0
             return (
-              <div
+              <Link
                 key={`${it.sym}-${i}`}
-                className="mr-6 inline-flex items-baseline gap-[7px] font-mono text-[11px]"
+                href={`/stock/${it.sym}`}
+                className="mr-6 inline-flex items-baseline gap-[7px] rounded px-1 font-mono text-[11px] transition-colors hover:bg-white/[0.06]"
               >
                 <span className="font-bold tracking-[0.04em] text-[#F4EFE6]">{it.sym}</span>
                 <span className="text-[#F4EFE6] tabular-nums">
@@ -69,7 +71,7 @@ export function TickerBar() {
                 <span className={"font-semibold " + (up ? "text-up-neon" : "text-down-neon")}>
                   {up ? "▲" : "▼"} {Math.abs(it.d).toFixed(2)}%
                 </span>
-              </div>
+              </Link>
             )
           })}
         </div>

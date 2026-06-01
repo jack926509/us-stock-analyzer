@@ -42,6 +42,9 @@ export const metadata: Metadata = {
   description: "美股分析系統 — 財報、AI 分析、華爾街視角",
 }
 
+// hydration 前套用主題，避免 light → dark 閃爍（FOUC）
+const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('theme');var d=s==='dark'||(!s&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');}catch(e){}})();`
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -51,7 +54,11 @@ export default function RootLayout({
     <html
       lang="zh-TW"
       className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${notoSansTC.variable} ${sourceSerif.variable} ${notoSerifTC.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Providers>{children}</Providers>
       </body>

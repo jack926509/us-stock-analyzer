@@ -6,8 +6,6 @@ import { TickerBar } from "@/components/design/TickerBar"
 import { CommandLine } from "@/components/design/CommandLine"
 import { Navbar } from "./Navbar"
 import { IndicesStrip } from "./IndicesStrip"
-import { PortfolioHero } from "./PortfolioHero"
-import { HoldingsTable } from "./HoldingsTable"
 import { SidePanel } from "./SidePanel"
 import { WatchlistTable } from "./WatchlistTable"
 import {
@@ -28,12 +26,14 @@ export function Dashboard() {
   // sort 讓 watchlist 順序變動但內容相同時不觸發新 query（穩定 cache key）
   const symbolKey = useMemo(() => [...symbols].sort().join(","), [symbols])
 
-  const { data: quotes = [], isLoading, isFetching } = useQuery<Quote[]>({
+  const { data: quotes = [], isLoading, isFetching, isError } = useQuery<Quote[]>({
     queryKey: ["quotes", symbolKey],
-    queryFn: () =>
-      symbolKey
-        ? fetch(`/api/stocks?symbols=${encodeURIComponent(symbolKey)}`).then((r) => r.json())
-        : Promise.resolve([]),
+    queryFn: async () => {
+      if (!symbolKey) return []
+      const res = await fetch(`/api/stocks?symbols=${encodeURIComponent(symbolKey)}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.json() as Promise<Quote[]>
+    },
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
     enabled: symbols.length > 0,
@@ -60,9 +60,7 @@ export function Dashboard() {
 
         <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
           <div className="flex flex-col gap-5">
-            <PortfolioHero />
-            <WatchlistTable data={data} isLoading={isLoading} />
-            <HoldingsTable />
+            <WatchlistTable data={data} isLoading={isLoading} isError={isError} />
           </div>
           <aside className="flex flex-col gap-5">
             <SidePanel data={data} />

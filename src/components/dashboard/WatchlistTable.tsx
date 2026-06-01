@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Trash2 } from "lucide-react"
+import { AlertCircle, Trash2 } from "lucide-react"
 import { LogoTile } from "@/components/design/LogoTile"
 import { Sparkline } from "@/components/design/Sparkline"
 import { SectionHeader } from "@/components/design/SectionHeader"
 import { fmtCap, changeColor, makeSpark } from "@/lib/format"
-import { removeFromWatchlist } from "@/lib/watchlist"
+import { getWatchlist, setWatchlist } from "@/lib/watchlist"
 import type { Quote, WatchlistItem } from "@/types"
 
 type WatchlistEntry = WatchlistItem & { quote: Quote | null }
@@ -16,6 +16,7 @@ type WatchlistEntry = WatchlistItem & { quote: Quote | null }
 interface WatchlistSectionProps {
   data: WatchlistEntry[]
   isLoading: boolean
+  isError?: boolean
 }
 
 const SECTOR_FILTERS = [
@@ -26,10 +27,9 @@ const SECTOR_FILTERS = [
   { id: "Financial Services", label: "金融" },
 ] as const
 
-export function WatchlistTable({ data, isLoading }: WatchlistSectionProps) {
+export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionProps) {
   const router = useRouter()
   const [filter, setFilter] = useState<(typeof SECTOR_FILTERS)[number]["id"]>("all")
-  const [deleting, setDeleting] = useState<string | null>(null)
 
   const sorted = useMemo(() => {
     const list = filter === "all" ? data : data.filter((d) => d.sector === filter)
@@ -40,15 +40,11 @@ export function WatchlistTable({ data, isLoading }: WatchlistSectionProps) {
 
   function handleDelete(e: React.MouseEvent, symbol: string) {
     e.stopPropagation()
-    setDeleting(symbol)
-    try {
-      removeFromWatchlist(symbol)
-      toast.success(`已移除 ${symbol}`)
-    } catch {
-      toast.error(`移除 ${symbol} 失敗`)
-    } finally {
-      setDeleting(null)
-    }
+    const prev = getWatchlist()
+    setWatchlist(prev.filter((w) => w.symbol !== symbol))
+    toast.success(`已移除 ${symbol}`, {
+      action: { label: "復原", onClick: () => setWatchlist(prev) },
+    })
   }
 
   if (isLoading) {
@@ -105,6 +101,16 @@ export function WatchlistTable({ data, isLoading }: WatchlistSectionProps) {
           </div>
         }
       />
+
+      {isError && (
+        <div className="flex items-start gap-2 border-b border-down/30 bg-down/5 px-[18px] py-2.5 text-xs">
+          <AlertCircle size={14} className="mt-0.5 shrink-0 text-down" />
+          <div>
+            <span className="font-semibold">報價載入失敗</span>
+            <span className="ml-2 text-muted-foreground">將於 60 秒後自動重試</span>
+          </div>
+        </div>
+      )}
 
       {/* desktop table */}
       <div className="hidden lg:block">
@@ -202,7 +208,6 @@ export function WatchlistTable({ data, isLoading }: WatchlistSectionProps) {
               </span>
               <button
                 onClick={(e) => handleDelete(e, row.symbol)}
-                disabled={deleting === row.symbol}
                 className="text-muted-foreground/60 transition-colors hover:text-down"
                 title="移除"
               >
@@ -225,32 +230,42 @@ export function WatchlistTable({ data, isLoading }: WatchlistSectionProps) {
             pct,
           )
           return (
-            <button
-              key={row.symbol}
-              onClick={() => router.push(`/stock/${row.symbol}`)}
-              className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 text-left hover:bg-paper"
-            >
-              <LogoTile symbol={row.symbol} size={32} />
-              <div className="min-w-0">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-mono text-sm font-bold">{row.symbol}</span>
-                  <span className="font-mono text-xs tabular-nums text-foreground">
-                    {q ? q.price.toFixed(2) : "—"}
+            <div key={row.symbol} className="px-4 py-3 hover:bg-paper">
+              <button
+                onClick={() => router.push(`/stock/${row.symbol}`)}
+                className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 text-left"
+              >
+                <LogoTile symbol={row.symbol} size={32} />
+                <div className="min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-mono text-sm font-bold">{row.symbol}</span>
+                    <span className="font-mono text-xs tabular-nums text-foreground">
+                      {q ? q.price.toFixed(2) : "—"}
+                    </span>
+                  </div>
+                  <div className="truncate text-[11px] text-muted-foreground">{row.name}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Sparkline points={points} color={color} width={56} height={20} />
+                  <span
+                    className="rounded px-1.5 py-0.5 font-mono text-[11px] font-bold text-white tabular-nums"
+                    style={{ background: color }}
+                  >
+                    {up ? "+" : ""}
+                    {pct.toFixed(2)}
                   </span>
                 </div>
-                <div className="truncate text-[11px] text-muted-foreground">{row.name}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Sparkline points={points} color={color} width={56} height={20} />
-                <span
-                  className="rounded px-1.5 py-0.5 font-mono text-[11px] font-bold text-white tabular-nums"
-                  style={{ background: color }}
+              </button>
+              <div className="mt-1.5 flex justify-end">
+                <button
+                  onClick={(e) => handleDelete(e, row.symbol)}
+                  className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-down"
                 >
-                  {up ? "+" : ""}
-                  {pct.toFixed(2)}
-                </span>
+                  <Trash2 size={11} />
+                  移除
+                </button>
               </div>
-            </button>
+            </div>
           )
         })}
       </div>

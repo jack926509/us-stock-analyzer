@@ -13,6 +13,36 @@ function apiKey() {
   return key
 }
 
+// ─── 共用：error log + TTL cache ──────────────────────────────────────────────
+
+function logError(op: string, symbol: string, err: unknown): void {
+  if (axios.isAxiosError(err)) {
+    console.warn(`[finnhub.${op}] ${symbol} failed`, {
+      status: err.response?.status,
+      code: err.code,
+      msg: err.message,
+    })
+  } else {
+    console.warn(`[finnhub.${op}] ${symbol} failed`, err)
+  }
+}
+
+// profile2 與 metric 一天才更新一次 → 1 小時 TTL 足夠；quote 不快取（價格秒級變動）
+// 儲存 promise 本身：並行呼叫自動共用同一個 in-flight request
+const CACHE_TTL_MS = 60 * 60 * 1000
+const cache = new Map<string, { promise: Promise<unknown>; expires: number }>()
+
+function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const hit = cache.get(key)
+  if (hit && hit.expires > Date.now()) return hit.promise as Promise<T>
+  const promise = fetcher().catch((err) => {
+    cache.delete(key)
+    throw err
+  })
+  cache.set(key, { promise, expires: Date.now() + CACHE_TTL_MS })
+  return promise as Promise<T>
+}
+
 // ─── Raw response shapes ─────────────────────────────────────────────────────
 
 interface FinnhubQuoteRaw {
@@ -51,30 +81,55 @@ interface FinnhubSearchRaw {
   }>
 }
 
+// ─── Raw fetchers (profile/metric 走 1 小時 cache) ─────────────────────────────
+
+async function fetchQuoteRaw(symbol: string): Promise<FinnhubQuoteRaw> {
+  const { data } = await axios.get<FinnhubQuoteRaw>(`${BASE_URL}/quote`, {
+    params: { symbol, token: apiKey() },
+    timeout: 8000,
+  })
+  return data
+}
+
+function fetchProfileRaw(symbol: string): Promise<FinnhubProfileRaw> {
+  return cached(`profile:${symbol}`, async () => {
+    const { data } = await axios.get<FinnhubProfileRaw>(`${BASE_URL}/stock/profile2`, {
+      params: { symbol, token: apiKey() },
+      timeout: 8000,
+    })
+    return data
+  })
+}
+
+function fetchMetricRaw(symbol: string): Promise<FinnhubMetricRaw> {
+  return cached(`metric:${symbol}`, async () => {
+    const { data } = await axios.get<FinnhubMetricRaw>(`${BASE_URL}/stock/metric`, {
+      params: { symbol, metric: "all", token: apiKey() },
+      timeout: 8000,
+    })
+    return data
+  })
+}
+
 // ─── Quote (含 metric 補齊 52W / P/E) ─────────────────────────────────────────
 
 export async function getQuote(symbol: string): Promise<Quote | null> {
   try {
     const [quoteRes, metricRes, profileRes] = await Promise.allSettled([
-      axios.get<FinnhubQuoteRaw>(`${BASE_URL}/quote`, {
-        params: { symbol, token: apiKey() },
-        timeout: 8000,
-      }),
-      axios.get<FinnhubMetricRaw>(`${BASE_URL}/stock/metric`, {
-        params: { symbol, metric: "all", token: apiKey() },
-        timeout: 8000,
-      }),
-      axios.get<FinnhubProfileRaw>(`${BASE_URL}/stock/profile2`, {
-        params: { symbol, token: apiKey() },
-        timeout: 8000,
-      }),
+      fetchQuoteRaw(symbol),
+      fetchMetricRaw(symbol),
+      fetchProfileRaw(symbol),
     ])
 
-    const quote = quoteRes.status === "fulfilled" ? quoteRes.value.data : null
+    if (quoteRes.status === "rejected") logError("getQuote/quote", symbol, quoteRes.reason)
+    if (metricRes.status === "rejected") logError("getQuote/metric", symbol, metricRes.reason)
+    if (profileRes.status === "rejected") logError("getQuote/profile", symbol, profileRes.reason)
+
+    const quote = quoteRes.status === "fulfilled" ? quoteRes.value : null
     if (!quote?.c) return null
 
-    const metric = metricRes.status === "fulfilled" ? metricRes.value.data?.metric : null
-    const profile = profileRes.status === "fulfilled" ? profileRes.value.data : null
+    const metric = metricRes.status === "fulfilled" ? metricRes.value?.metric : null
+    const profile = profileRes.status === "fulfilled" ? profileRes.value : null
 
     return {
       symbol,
@@ -94,7 +149,8 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
       pe: Number(metric?.peTTM ?? metric?.peAnnual ?? 0) || undefined,
       exchange: profile?.exchange ?? "",
     }
-  } catch {
+  } catch (err) {
+    logError("getQuote", symbol, err)
     return null
   }
 }
@@ -103,19 +159,7 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
 
 export async function getProfile(symbol: string): Promise<Profile | null> {
   try {
-    const [profileRes, quoteRes] = await Promise.all([
-      axios.get<FinnhubProfileRaw>(`${BASE_URL}/stock/profile2`, {
-        params: { symbol, token: apiKey() },
-        timeout: 8000,
-      }),
-      axios.get<FinnhubQuoteRaw>(`${BASE_URL}/quote`, {
-        params: { symbol, token: apiKey() },
-        timeout: 8000,
-      }),
-    ])
-
-    const p = profileRes.data
-    const q = quoteRes.data
+    const [p, q] = await Promise.all([fetchProfileRaw(symbol), fetchQuoteRaw(symbol)])
     if (!p?.ticker) return null
 
     return {
@@ -133,7 +177,8 @@ export async function getProfile(symbol: string): Promise<Profile | null> {
       changePercentage: q?.dp ?? 0,
       country: p.country || "",
     }
-  } catch {
+  } catch (err) {
+    logError("getProfile", symbol, err)
     return null
   }
 }
@@ -187,7 +232,8 @@ export async function searchSymbols(query: string): Promise<SearchHit[]> {
         exchange: "US",
         exchangeFullName: "US Exchange",
       }))
-  } catch {
+  } catch (err) {
+    logError("searchSymbols", query, err)
     return []
   }
 }
@@ -229,12 +275,78 @@ export interface FinancialSnapshot {
   dividendYield: number
 }
 
-export async function getFinancialSnapshot(symbol: string): Promise<FinancialSnapshot | null> {
+// ─── 公司新聞 ────────────────────────────────────────────────────────────────
+
+export interface NewsItem {
+  id: number
+  headline: string
+  summary: string
+  source: string
+  url: string
+  image: string
+  publishedAt: string
+  category: string
+}
+
+interface FinnhubNewsRaw {
+  id: number
+  headline: string
+  summary: string
+  source: string
+  url: string
+  image: string
+  datetime: number
+  category: string
+}
+
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+export async function getCompanyNews(symbol: string, days = 7): Promise<NewsItem[]> {
   try {
-    const { data } = await axios.get<FinnhubMetricRaw>(`${BASE_URL}/stock/metric`, {
-      params: { symbol, metric: "all", token: apiKey() },
+    const to = new Date()
+    const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000)
+    const { data } = await axios.get<FinnhubNewsRaw[]>(`${BASE_URL}/company-news`, {
+      params: { symbol, from: isoDate(from), to: isoDate(to), token: apiKey() },
       timeout: 8000,
     })
+    return (data ?? []).slice(0, 20).map((n) => ({
+      id: n.id,
+      headline: n.headline,
+      summary: n.summary,
+      source: n.source,
+      url: n.url,
+      image: n.image,
+      publishedAt: new Date(n.datetime * 1000).toISOString(),
+      category: n.category,
+    }))
+  } catch (err) {
+    logError("getCompanyNews", symbol, err)
+    return []
+  }
+}
+
+// ─── 同業 peers ──────────────────────────────────────────────────────────────
+
+export async function getPeers(symbol: string): Promise<string[]> {
+  try {
+    const { data } = await axios.get<string[]>(`${BASE_URL}/stock/peers`, {
+      params: { symbol, token: apiKey() },
+      timeout: 8000,
+    })
+    return (data ?? []).filter((s) => s && s !== symbol).slice(0, 8)
+  } catch (err) {
+    logError("getPeers", symbol, err)
+    return []
+  }
+}
+
+// ─── 給 AI 分析用的精簡基本面摘要（API route 重用） ───────────────────────────
+
+export async function getFinancialSnapshot(symbol: string): Promise<FinancialSnapshot | null> {
+  try {
+    const data = await fetchMetricRaw(symbol)
     const m = data?.metric
     if (!m) return null
 
@@ -262,7 +374,8 @@ export async function getFinancialSnapshot(symbol: string): Promise<FinancialSna
       week52Low: n(m["52WeekLow"]),
       dividendYield: n(m.currentDividendYieldTTM),
     }
-  } catch {
+  } catch (err) {
+    logError("getFinancialSnapshot", symbol, err)
     return null
   }
 }

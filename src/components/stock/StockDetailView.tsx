@@ -5,7 +5,7 @@ import { TickerBar } from "@/components/design/TickerBar"
 import { Navbar } from "@/components/dashboard/Navbar"
 import { StockHeader } from "./StockHeader"
 import { ChartCard } from "./ChartCard"
-import { QuoteSheet } from "./QuoteSheet"
+import { RightTabs } from "./RightTabs"
 import { AnalysisCard } from "@/components/analysis/AnalysisCard"
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary"
 import type { Profile, Quote } from "@/types"
@@ -74,7 +74,7 @@ export function StockDetailView({ symbol }: Props) {
             </ErrorBoundary>
           </div>
           <aside className="flex flex-col gap-5">
-            <QuoteSheet profile={profile ?? null} quote={quote ?? null} />
+            <RightTabs symbol={symbol} profile={profile ?? null} quote={quote ?? null} />
           </aside>
         </div>
       </main>

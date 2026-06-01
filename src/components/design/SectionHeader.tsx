@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 
 interface SectionHeaderProps {
   eyebrow: string
-  title: string
+  title: ReactNode
   right?: ReactNode
   className?: string
 }

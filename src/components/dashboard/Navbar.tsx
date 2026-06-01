@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { RefreshCw } from "lucide-react"
+import { ThemeToggle } from "@/components/design/ThemeToggle"
 import { AddStockDialog } from "./AddStockDialog"
 
 interface NavbarProps {
@@ -38,6 +39,9 @@ export function Navbar({ onRefresh, isRefreshing, breadcrumb }: NavbarProps) {
             </span>
           ))}
         </span>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </header>
     )
   }
@@ -50,6 +54,23 @@ export function Navbar({ onRefresh, isRefreshing, breadcrumb }: NavbarProps) {
           MVP · TERMINAL
         </span>
       </Link>
+
+      <nav className="hidden items-center gap-1 md:flex">
+        {[
+          { href: "/", label: "儀表板" },
+          { href: "/briefing", label: "簡報" },
+          { href: "/movers", label: "Movers" },
+          { href: "/settings", label: "設定" },
+        ].map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="rounded-md px-2.5 py-1 font-mono text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-paper hover:text-foreground"
+          >
+            {l.label}
+          </Link>
+        ))}
+      </nav>
 
       <div className="ml-auto flex items-center gap-3">
         <span className="hidden items-center gap-1.5 rounded-md border border-hair bg-card px-3 py-1.5 font-mono text-[11px] font-semibold sm:flex">
@@ -67,6 +88,7 @@ export function Navbar({ onRefresh, isRefreshing, breadcrumb }: NavbarProps) {
           </button>
         )}
         <AddStockDialog />
+        <ThemeToggle />
         <div className="flex size-8 items-center justify-center rounded-lg bg-ink font-serif text-xs font-bold text-ink-foreground">
           J
         </div>
