@@ -2,8 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -109,53 +107,6 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  /* Bloomberg Terminal × Claude — dark 終端機配色
-     保留珊瑚橘 brand，背景反轉為深沉終端機黑 */
-  --background: #0E0E0E;
-  --foreground: #F4EFE6;
-  --brand: #E89773;
-  --brand-foreground: #0E0E0E;
-  --ink: #F4EFE6;
-  --ink-foreground: #0E0E0E;
-  --paper: #161616;
-  --up: #00D47E;
-  --down: #FF5B5B;
-  --up-neon: #00D47E;
-  --down-neon: #FF5B5B;
-  --hair: rgba(255, 255, 255, 0.1);
-  --hair-soft: rgba(255, 255, 255, 0.06);
-  --card: #141414;
-  --card-foreground: #F4EFE6;
-  --popover: #141414;
-  --popover-foreground: #F4EFE6;
-  --primary: #F4EFE6;
-  --primary-foreground: #0E0E0E;
-  --secondary: #1F1F1F;
-  --secondary-foreground: #F4EFE6;
-  --muted: #1A1A1A;
-  --muted-foreground: #9B9588;
-  --accent: #E89773;
-  --accent-foreground: #0E0E0E;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.12);
-  --ring: #E89773;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
 }
 
 /* ── Animations ─────────────────────────────────────────────────────────── */

@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { RefreshCw } from "lucide-react"
-import { ThemeToggle } from "@/components/design/ThemeToggle"
 import { AddStockDialog } from "./AddStockDialog"
 
 interface NavbarProps {
@@ -39,9 +38,6 @@ export function Navbar({ onRefresh, isRefreshing, breadcrumb }: NavbarProps) {
             </span>
           ))}
         </span>
-        <div className="ml-auto">
-          <ThemeToggle />
-        </div>
       </header>
     )
   }
@@ -88,7 +84,6 @@ export function Navbar({ onRefresh, isRefreshing, breadcrumb }: NavbarProps) {
           </button>
         )}
         <AddStockDialog />
-        <ThemeToggle />
         <div className="flex size-8 items-center justify-center rounded-lg bg-ink font-serif text-xs font-bold text-ink-foreground">
           J
         </div>

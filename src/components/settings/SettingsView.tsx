@@ -2,16 +2,15 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { Download, Moon, Sun, Trash2, Upload } from "lucide-react"
+import { Download, Trash2, Upload } from "lucide-react"
 import { TickerBar } from "@/components/design/TickerBar"
 import { Navbar } from "@/components/dashboard/Navbar"
 import { SectionHeader } from "@/components/design/SectionHeader"
 import { Button } from "@/components/ui/button"
-import { useTheme } from "@/hooks/useTheme"
 import { getWatchlist, setWatchlist } from "@/lib/watchlist"
 import { clearHistory, getHistory } from "@/lib/analysisHistory"
 
-const STORAGE_KEYS = ["watchlist_v1", "analysis_history_v1", "theme"]
+const STORAGE_KEYS = ["watchlist_v1", "analysis_history_v1"]
 
 interface Stats {
   watchlist: number
@@ -35,7 +34,6 @@ function computeStats(): Stats {
 }
 
 export function SettingsView() {
-  const { theme, setTheme } = useTheme()
   const [stats, setStats] = useState<Stats>({ watchlist: 0, analyses: 0, bytes: 0 })
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -91,7 +89,7 @@ export function SettingsView() {
     const ok = window.confirm("清除全部本機資料？此操作無法復原，建議先匯出備份。")
     if (!ok) return
     for (const k of STORAGE_KEYS) {
-      if (k !== "theme") window.localStorage.removeItem(k)
+      window.localStorage.removeItem(k)
     }
     setWatchlist([])
     clearHistory()
@@ -106,48 +104,13 @@ export function SettingsView() {
 
       <main className="flex-1 px-4 pb-12 pt-5 sm:px-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          {/* Appearance */}
-          <section className="overflow-hidden rounded-xl border border-hair bg-card">
-            <SectionHeader eyebrow="APPEARANCE" title="外觀" />
-            <div className="p-5">
-              <p className="text-sm text-muted-foreground">主題</p>
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={() => setTheme("light")}
-                  className={
-                    "flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-bold " +
-                    (theme === "light"
-                      ? "border-brand bg-brand/10 text-brand"
-                      : "border-hair text-muted-foreground hover:text-foreground")
-                  }
-                >
-                  <Sun size={13} /> 淺色
-                </button>
-                <button
-                  onClick={() => setTheme("dark")}
-                  className={
-                    "flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-bold " +
-                    (theme === "dark"
-                      ? "border-brand bg-brand/10 text-brand"
-                      : "border-hair text-muted-foreground hover:text-foreground")
-                  }
-                >
-                  <Moon size={13} /> 深色
-                </button>
-              </div>
-              <p className="mt-3 font-mono text-[10px] text-muted-foreground/70">
-                預設跟隨系統，調整後寫入 localStorage 持久化。
-              </p>
-            </div>
-          </section>
-
           {/* Storage stats */}
-          <section className="overflow-hidden rounded-xl border border-hair bg-card">
+          <section className="overflow-hidden rounded-xl border border-hair bg-card lg:col-span-2">
             <SectionHeader eyebrow="STORAGE" title="本機儲存統計" />
-            <div className="grid grid-cols-2 gap-3 p-5 text-sm">
+            <div className="grid grid-cols-2 gap-3 p-5 text-sm md:grid-cols-3">
               <Stat label="追蹤清單" value={stats.watchlist} />
               <Stat label="分析報告" value={stats.analyses} />
-              <Stat label="總大小" value={`${(stats.bytes / 1024).toFixed(1)} KB`} span2 />
+              <Stat label="總大小" value={`${(stats.bytes / 1024).toFixed(1)} KB`} />
             </div>
           </section>
 
