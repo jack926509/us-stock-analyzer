@@ -34,9 +34,9 @@ export function StockHeader({
   return (
     <>
       {/* Big header */}
-      <div className="border-b border-hair bg-background px-4 py-5 sm:px-8">
+      <div className="border-hair bg-background border-b px-4 py-5 sm:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-[18px]">
-          <LogoTile symbol={symbol} size={64} />
+          <LogoTile symbol={symbol} src={profile?.image} size={64} />
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
@@ -46,11 +46,9 @@ export function StockHeader({
               >
                 {symbol}
               </h1>
-              <span className="font-serif text-lg font-medium">
-                {profile?.companyName ?? "—"}
-              </span>
+              <span className="font-serif text-lg font-medium">{profile?.companyName ?? "—"}</span>
               {metaLine && (
-                <span className="font-mono text-[11px] tracking-[0.06em] text-muted-foreground">
+                <span className="text-muted-foreground font-mono text-[11px] tracking-[0.06em]">
                   {metaLine}
                 </span>
               )}
@@ -70,15 +68,15 @@ export function StockHeader({
               {/* Price */}
               <div>
                 <div className="flex items-baseline gap-1">
-                  <span className="font-mono text-base text-muted-foreground">$</span>
+                  <span className="text-muted-foreground font-mono text-base">$</span>
                   <span
-                    className="font-mono font-bold leading-[0.95] tabular-nums text-[44px] sm:text-[56px]"
+                    className="font-mono text-[44px] leading-[0.95] font-bold tabular-nums sm:text-[56px]"
                     style={{ letterSpacing: "-0.03em" }}
                   >
                     {displayPrice.toFixed(2)}
                   </span>
                 </div>
-                <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+                <div className="text-muted-foreground mt-1 font-mono text-[11px]">
                   LAST · UPDATED 60S
                 </div>
               </div>
@@ -94,7 +92,7 @@ export function StockHeader({
                   {displayChangePct.toFixed(2)}%
                 </div>
                 {profile?.marketCap ? (
-                  <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+                  <div className="text-muted-foreground mt-1 font-mono text-[11px]">
                     MCAP {fmtCap(profile.marketCap)}
                   </div>
                 ) : null}

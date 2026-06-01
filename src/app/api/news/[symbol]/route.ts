@@ -1,20 +1,13 @@
 import { getCompanyNews } from "@/lib/api/finnhub"
-import { validateSymbol } from "@/lib/validations"
+import { cacheHeaders, handleApiError, jsonOk, normalizeSymbol } from "@/lib/api/response"
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ symbol: string }> }
-) {
+export async function GET(_req: Request, { params }: { params: Promise<{ symbol: string }> }) {
   try {
     const { symbol: raw } = await params
-    const symbol = raw.toUpperCase()
-    if (!validateSymbol(symbol)) {
-      return Response.json({ error: "Invalid symbol", code: "INVALID_SYMBOL" }, { status: 400 })
-    }
+    const symbol = normalizeSymbol(raw)
     const news = await getCompanyNews(symbol, 7)
-    return Response.json(news)
+    return jsonOk(news, { headers: cacheHeaders(600, 600) })
   } catch (err) {
-    console.error("[GET /api/news]", err)
-    return Response.json({ error: "Failed to fetch news", code: "API_ERROR" }, { status: 500 })
+    return handleApiError("[GET /api/news]", err)
   }
 }

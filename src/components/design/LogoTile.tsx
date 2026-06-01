@@ -1,17 +1,18 @@
 "use client"
 
+import Image from "next/image"
 import { useState } from "react"
 
-// 公司 logo 主要走 FMP 公開 CDN（無需 API key），抓不到時退回字母色塊
 const HUES = ["#CC785C", "#1A1A1A", "#8B6F47", "#6B6357", "#A85C44"] as const
 
 interface LogoTileProps {
   symbol: string
+  src?: string | null
   size?: number
   className?: string
 }
 
-export function LogoTile({ symbol, size = 28, className }: LogoTileProps) {
+export function LogoTile({ symbol, src, size = 28, className }: LogoTileProps) {
   const [failed, setFailed] = useState(false)
 
   const hash = [...symbol].reduce((a, c) => a + c.charCodeAt(0), 0)
@@ -19,7 +20,7 @@ export function LogoTile({ symbol, size = 28, className }: LogoTileProps) {
   const label = symbol.slice(0, symbol.length > 4 ? 3 : 2)
   const radius = size * 0.22
 
-  if (failed) {
+  if (!src || failed) {
     return (
       <div
         className={className}
@@ -45,12 +46,13 @@ export function LogoTile({ symbol, size = 28, className }: LogoTileProps) {
   }
 
   return (
-    <img
-      src={`https://images.financialmodelingprep.com/symbol/${symbol.toUpperCase()}.png`}
-      alt={symbol}
+    <Image
+      src={src}
+      alt={`${symbol} logo`}
       width={size}
       height={size}
       onError={() => setFailed(true)}
+      unoptimized
       className={className}
       style={{
         width: size,

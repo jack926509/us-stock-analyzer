@@ -6,6 +6,68 @@ import axios from "axios"
 import type { Quote, Profile } from "@/types"
 
 const BASE_URL = "https://finnhub.io/api/v1"
+const FINNHUB_TIMEOUT_MS = 8000
+const MAX_CONCURRENT_FINNHUB_REQUESTS = 4
+const MAX_FINNHUB_ATTEMPTS = 3
+
+let activeRequests = 0
+const requestQueue: Array<() => void> = []
+
+async function withFinnhubSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (activeRequests >= MAX_CONCURRENT_FINNHUB_REQUESTS) {
+    await new Promise<void>((resolve) => requestQueue.push(resolve))
+  }
+
+  activeRequests += 1
+  try {
+    return await fn()
+  } finally {
+    activeRequests -= 1
+    requestQueue.shift()?.()
+  }
+}
+
+async function finnhubGet<T>(
+  path: string,
+  params: Record<string, string | number>,
+  timeout = FINNHUB_TIMEOUT_MS
+): Promise<T> {
+  return withFinnhubSlot(async () => {
+    let lastError: unknown
+    for (let attempt = 1; attempt <= MAX_FINNHUB_ATTEMPTS; attempt += 1) {
+      try {
+        const { data } = await axios.get<T>(`${BASE_URL}${path}`, {
+          params: { ...params, token: apiKey() },
+          timeout,
+        })
+        return data
+      } catch (err) {
+        lastError = err
+        if (!shouldRetryFinnhub(err) || attempt === MAX_FINNHUB_ATTEMPTS) break
+        await sleep(250 * attempt)
+      }
+    }
+    throw lastError
+  })
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function shouldRetryFinnhub(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false
+  const status = err.response?.status
+  return (
+    err.code === "ECONNABORTED" ||
+    status === 408 ||
+    status === 429 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504
+  )
+}
 
 function apiKey() {
   const key = process.env.FINNHUB_API_KEY
@@ -46,14 +108,14 @@ function cached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
 // ─── Raw response shapes ─────────────────────────────────────────────────────
 
 interface FinnhubQuoteRaw {
-  c: number  // current price
-  d: number  // change
+  c: number // current price
+  d: number // change
   dp: number // change percent
-  h: number  // day high
-  l: number  // day low
-  o: number  // open
+  h: number // day high
+  l: number // day low
+  o: number // open
   pc: number // previous close
-  t: number  // timestamp
+  t: number // timestamp
 }
 
 interface FinnhubProfileRaw {
@@ -84,30 +146,18 @@ interface FinnhubSearchRaw {
 // ─── Raw fetchers (profile/metric 走 1 小時 cache) ─────────────────────────────
 
 async function fetchQuoteRaw(symbol: string): Promise<FinnhubQuoteRaw> {
-  const { data } = await axios.get<FinnhubQuoteRaw>(`${BASE_URL}/quote`, {
-    params: { symbol, token: apiKey() },
-    timeout: 8000,
-  })
-  return data
+  return finnhubGet<FinnhubQuoteRaw>("/quote", { symbol })
 }
 
 function fetchProfileRaw(symbol: string): Promise<FinnhubProfileRaw> {
   return cached(`profile:${symbol}`, async () => {
-    const { data } = await axios.get<FinnhubProfileRaw>(`${BASE_URL}/stock/profile2`, {
-      params: { symbol, token: apiKey() },
-      timeout: 8000,
-    })
-    return data
+    return finnhubGet<FinnhubProfileRaw>("/stock/profile2", { symbol })
   })
 }
 
 function fetchMetricRaw(symbol: string): Promise<FinnhubMetricRaw> {
   return cached(`metric:${symbol}`, async () => {
-    const { data } = await axios.get<FinnhubMetricRaw>(`${BASE_URL}/stock/metric`, {
-      params: { symbol, metric: "all", token: apiKey() },
-      timeout: 8000,
-    })
-    return data
+    return finnhubGet<FinnhubMetricRaw>("/stock/metric", { symbol, metric: "all" })
   })
 }
 
@@ -134,6 +184,7 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
     return {
       symbol,
       name: profile?.name ?? symbol,
+      logo: profile?.logo || undefined,
       price: quote.c,
       change: quote.d,
       changePercentage: quote.dp,
@@ -141,9 +192,7 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
       dayHigh: quote.h,
       yearHigh: Number(metric?.["52WeekHigh"] ?? 0),
       yearLow: Number(metric?.["52WeekLow"] ?? 0),
-      marketCap: profile?.marketCapitalization
-        ? profile.marketCapitalization * 1_000_000
-        : 0,
+      marketCap: profile?.marketCapitalization ? profile.marketCapitalization * 1_000_000 : 0,
       open: quote.o,
       previousClose: quote.pc,
       pe: Number(metric?.peTTM ?? metric?.peAnnual ?? 0) || undefined,
@@ -210,6 +259,7 @@ export async function getMarketIndices(): Promise<Quote[]> {
 export interface SearchHit {
   symbol: string
   name: string
+  logo?: string
   currency: string
   exchange: string
   exchangeFullName: string
@@ -217,10 +267,7 @@ export interface SearchHit {
 
 export async function searchSymbols(query: string): Promise<SearchHit[]> {
   try {
-    const { data } = await axios.get<FinnhubSearchRaw>(`${BASE_URL}/search`, {
-      params: { q: query, exchange: "US", token: apiKey() },
-      timeout: 6000,
-    })
+    const data = await finnhubGet<FinnhubSearchRaw>("/search", { q: query, exchange: "US" }, 6000)
     if (!Array.isArray(data?.result)) return []
     return data.result
       .filter((r) => r.type === "Common Stock" || r.type === "ETP")
@@ -228,6 +275,7 @@ export async function searchSymbols(query: string): Promise<SearchHit[]> {
       .map((r) => ({
         symbol: r.displaySymbol || r.symbol,
         name: r.description,
+        logo: undefined,
         currency: "USD",
         exchange: "US",
         exchangeFullName: "US Exchange",
@@ -241,7 +289,8 @@ export async function searchSymbols(query: string): Promise<SearchHit[]> {
 // ─── Batch Quotes（追蹤清單 / 持股用） ────────────────────────────────────────
 
 export async function getQuotes(symbols: string[]): Promise<Quote[]> {
-  const results = await Promise.allSettled(symbols.map(getQuote))
+  const uniqueSymbols = Array.from(new Set(symbols.map((s) => s.trim().toUpperCase())))
+  const results = await Promise.allSettled(uniqueSymbols.map(getQuote))
   return results
     .map((r) => (r.status === "fulfilled" ? r.value : null))
     .filter((q): q is Quote => q !== null)
@@ -307,9 +356,10 @@ export async function getCompanyNews(symbol: string, days = 7): Promise<NewsItem
   try {
     const to = new Date()
     const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000)
-    const { data } = await axios.get<FinnhubNewsRaw[]>(`${BASE_URL}/company-news`, {
-      params: { symbol, from: isoDate(from), to: isoDate(to), token: apiKey() },
-      timeout: 8000,
+    const data = await finnhubGet<FinnhubNewsRaw[]>("/company-news", {
+      symbol,
+      from: isoDate(from),
+      to: isoDate(to),
     })
     return (data ?? []).slice(0, 20).map((n) => ({
       id: n.id,
@@ -331,10 +381,7 @@ export async function getCompanyNews(symbol: string, days = 7): Promise<NewsItem
 
 export async function getPeers(symbol: string): Promise<string[]> {
   try {
-    const { data } = await axios.get<string[]>(`${BASE_URL}/stock/peers`, {
-      params: { symbol, token: apiKey() },
-      timeout: 8000,
-    })
+    const data = await finnhubGet<string[]>("/stock/peers", { symbol })
     return (data ?? []).filter((s) => s && s !== symbol).slice(0, 8)
   } catch (err) {
     logError("getPeers", symbol, err)

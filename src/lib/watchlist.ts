@@ -79,10 +79,7 @@ export function addToWatchlist(item: Omit<WatchlistItem, "addedAt">): WatchlistI
   const current = getWatchlist()
   const upper = item.symbol.toUpperCase()
   if (current.find((w) => w.symbol === upper)) return current
-  const next = [
-    ...current,
-    { ...item, symbol: upper, addedAt: new Date().toISOString() },
-  ]
+  const next = [...current, { ...item, symbol: upper, addedAt: new Date().toISOString() }]
   setWatchlist(next)
   return next
 }

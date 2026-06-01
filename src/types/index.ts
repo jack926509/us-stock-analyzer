@@ -3,6 +3,7 @@
 export interface Quote {
   symbol: string
   name: string
+  logo?: string
   price: number
   change: number
   changePercentage: number
@@ -37,6 +38,7 @@ export interface Profile {
 export interface WatchlistItem {
   symbol: string
   name: string
+  logo?: string | null
   sector?: string | null
   addedAt: string
 }
@@ -46,7 +48,7 @@ export type AnalysisRating = "Strong Buy" | "Buy" | "Hold" | "Sell" | "Strong Se
 
 export interface AnalysisReport {
   symbol: string
-  content: string                 // Markdown
+  content: string // Markdown
   rating?: AnalysisRating | null
   targetPriceLow?: number | null
   targetPriceHigh?: number | null

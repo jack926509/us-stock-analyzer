@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control", value: "on" },
@@ -16,18 +16,17 @@ const securityHeaders = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://s3.tradingview.com https://*.tradingview.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://financialmodelingprep.com https://*.tradingview.com https://logo.clearbit.com",
-      "connect-src 'self' https://*.tradingview.com https://financialmodelingprep.com https://finnhub.io https://*.turso.io",
+      "img-src 'self' data: blob: https://static2.finnhub.io https://*.tradingview.com https://logo.clearbit.com",
+      "connect-src 'self' https://*.tradingview.com https://finnhub.io",
       "frame-src https://*.tradingview.com",
       "font-src 'self'",
     ].join("; "),
   },
-];
+]
 
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "financialmodelingprep.com" },
       { protocol: "https", hostname: "static2.finnhub.io" },
       { protocol: "https", hostname: "logo.clearbit.com" },
     ],
@@ -38,8 +37,8 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
-    ];
+    ]
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

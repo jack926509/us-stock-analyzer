@@ -34,7 +34,7 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
   const sorted = useMemo(() => {
     const list = filter === "all" ? data : data.filter((d) => d.sector === filter)
     return [...list].sort(
-      (a, b) => (b.quote?.changePercentage ?? 0) - (a.quote?.changePercentage ?? 0),
+      (a, b) => (b.quote?.changePercentage ?? 0) - (a.quote?.changePercentage ?? 0)
     )
   }, [data, filter])
 
@@ -49,8 +49,8 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
 
   if (isLoading) {
     return (
-      <section className="overflow-hidden rounded-xl border border-hair bg-card">
-        <div className="border-b border-hair-soft px-[18px] py-3.5">
+      <section className="border-hair bg-card overflow-hidden rounded-xl border">
+        <div className="border-hair-soft border-b px-[18px] py-3.5">
           <div className="h-4 w-32 animate-pulse rounded bg-black/[0.06]" />
         </div>
         <div className="space-y-1 p-3">
@@ -64,18 +64,18 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
 
   if (data.length === 0) {
     return (
-      <section className="overflow-hidden rounded-xl border border-hair bg-card">
+      <section className="border-hair bg-card overflow-hidden rounded-xl border">
         <SectionHeader eyebrow="WATCHLIST" title="追蹤清單" />
         <div className="px-6 py-12 text-center">
           <p className="text-muted-foreground">追蹤清單為空</p>
-          <p className="mt-1 text-sm text-muted-foreground/70">點擊右上角「新增股票」開始追蹤</p>
+          <p className="text-muted-foreground/70 mt-1 text-sm">點擊右上角「新增股票」開始追蹤</p>
         </div>
       </section>
     )
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-hair bg-card">
+    <section className="border-hair bg-card overflow-hidden rounded-xl border">
       <SectionHeader
         eyebrow={`WATCHLIST · ${data.length} ISSUES`}
         title="追蹤清單"
@@ -103,11 +103,11 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
       />
 
       {isError && (
-        <div className="flex items-start gap-2 border-b border-down/30 bg-down/5 px-[18px] py-2.5 text-xs">
-          <AlertCircle size={14} className="mt-0.5 shrink-0 text-down" />
+        <div className="border-down/30 bg-down/5 flex items-start gap-2 border-b px-[18px] py-2.5 text-xs">
+          <AlertCircle size={14} className="text-down mt-0.5 shrink-0" />
           <div>
             <span className="font-semibold">報價載入失敗</span>
-            <span className="ml-2 text-muted-foreground">將於 60 秒後自動重試</span>
+            <span className="text-muted-foreground ml-2">將於 60 秒後自動重試</span>
           </div>
         </div>
       )}
@@ -115,7 +115,7 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
       {/* desktop table */}
       <div className="hidden lg:block">
         <div
-          className="grid items-center gap-2.5 bg-ink px-[18px] py-2 font-mono text-[9.5px] font-bold uppercase tracking-[0.1em] text-ink-foreground"
+          className="bg-ink text-ink-foreground grid items-center gap-2.5 px-[18px] py-2 font-mono text-[9.5px] font-bold tracking-[0.1em] uppercase"
           style={{ gridTemplateColumns: "32px 1fr 90px 90px 110px 80px 70px 90px 70px 24px" }}
         >
           <span>#</span>
@@ -136,7 +136,7 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
           const color = changeColor(pct)
           const points = makeSpark(
             [...row.symbol].reduce((a, c) => a + c.charCodeAt(0), 0),
-            pct,
+            pct
           )
           const range = q ? q.yearHigh - q.yearLow : 0
           const pos = q && range > 0 ? Math.max(0, Math.min(1, (q.price - q.yearLow) / range)) : 0.5
@@ -148,19 +148,19 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
               onClick={() => router.push(`/stock/${row.symbol}`)}
               onKeyDown={(e) => e.key === "Enter" && router.push(`/stock/${row.symbol}`)}
               className={
-                "grid cursor-pointer items-center gap-2.5 px-[18px] py-3 hover:bg-paper " +
-                (i === 0 ? "" : "border-t border-hair-soft")
+                "hover:bg-paper grid cursor-pointer items-center gap-2.5 px-[18px] py-3 " +
+                (i === 0 ? "" : "border-hair-soft border-t")
               }
               style={{ gridTemplateColumns: "32px 1fr 90px 90px 110px 80px 70px 90px 70px 24px" }}
             >
-              <span className="font-mono text-[11px] text-muted-foreground">
+              <span className="text-muted-foreground font-mono text-[11px]">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <div className="flex min-w-0 items-center gap-2.5">
-                <LogoTile symbol={row.symbol} size={28} />
+                <LogoTile symbol={row.symbol} src={q?.logo ?? row.logo} size={28} />
                 <div className="min-w-0">
-                  <div className="font-mono text-[13px] font-bold leading-tight">{row.symbol}</div>
-                  <div className="truncate text-[11px] text-muted-foreground">{row.name}</div>
+                  <div className="font-mono text-[13px] leading-tight font-bold">{row.symbol}</div>
+                  <div className="text-muted-foreground truncate text-[11px]">{row.name}</div>
                 </div>
               </div>
               <span className="text-right font-mono text-[13px] font-semibold tabular-nums">
@@ -175,24 +175,24 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
               <div className="flex justify-end">
                 <Sparkline points={points} color={color} width={100} height={22} fill />
               </div>
-              <span className="text-right font-mono text-[11px] text-muted-foreground">
+              <span className="text-muted-foreground text-right font-mono text-[11px]">
                 {fmtCap(q?.marketCap ?? null)}
               </span>
-              <span className="text-right font-mono text-[11px] text-muted-foreground">
+              <span className="text-muted-foreground text-right font-mono text-[11px]">
                 {q?.pe ? q.pe.toFixed(1) : "—"}
               </span>
               <div className="self-center">
                 <div className="relative h-1 rounded-sm bg-black/[0.06]">
                   <div
-                    className="absolute left-0 top-0 bottom-0 rounded-sm"
+                    className="absolute top-0 bottom-0 left-0 rounded-sm"
                     style={{ width: `${pos * 100}%`, background: color }}
                   />
                   <div
-                    className="absolute -top-0.5 h-2 w-px bg-foreground"
+                    className="bg-foreground absolute -top-0.5 h-2 w-px"
                     style={{ left: `${pos * 100}%` }}
                   />
                 </div>
-                <div className="mt-1 flex justify-between font-mono text-[9px] text-muted-foreground">
+                <div className="text-muted-foreground mt-1 flex justify-between font-mono text-[9px]">
                   <span>{q?.yearLow.toFixed(0) ?? "—"}</span>
                   <span>{q?.yearHigh.toFixed(0) ?? "—"}</span>
                 </div>
@@ -208,7 +208,7 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
               </span>
               <button
                 onClick={(e) => handleDelete(e, row.symbol)}
-                className="text-muted-foreground/60 transition-colors hover:text-down"
+                className="text-muted-foreground/60 hover:text-down transition-colors"
                 title="移除"
               >
                 <Trash2 size={13} />
@@ -219,7 +219,7 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
       </div>
 
       {/* mobile cards */}
-      <div className="divide-y divide-hair-soft lg:hidden">
+      <div className="divide-hair-soft divide-y lg:hidden">
         {sorted.map((row) => {
           const q = row.quote
           const pct = q?.changePercentage ?? 0
@@ -227,23 +227,23 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
           const color = changeColor(pct)
           const points = makeSpark(
             [...row.symbol].reduce((a, c) => a + c.charCodeAt(0), 0),
-            pct,
+            pct
           )
           return (
-            <div key={row.symbol} className="px-4 py-3 hover:bg-paper">
+            <div key={row.symbol} className="hover:bg-paper px-4 py-3">
               <button
                 onClick={() => router.push(`/stock/${row.symbol}`)}
                 className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 text-left"
               >
-                <LogoTile symbol={row.symbol} size={32} />
+                <LogoTile symbol={row.symbol} src={q?.logo ?? row.logo} size={32} />
                 <div className="min-w-0">
                   <div className="flex items-baseline gap-2">
                     <span className="font-mono text-sm font-bold">{row.symbol}</span>
-                    <span className="font-mono text-xs tabular-nums text-foreground">
+                    <span className="text-foreground font-mono text-xs tabular-nums">
                       {q ? q.price.toFixed(2) : "—"}
                     </span>
                   </div>
-                  <div className="truncate text-[11px] text-muted-foreground">{row.name}</div>
+                  <div className="text-muted-foreground truncate text-[11px]">{row.name}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Sparkline points={points} color={color} width={56} height={20} />
@@ -259,7 +259,7 @@ export function WatchlistTable({ data, isLoading, isError }: WatchlistSectionPro
               <div className="mt-1.5 flex justify-end">
                 <button
                   onClick={(e) => handleDelete(e, row.symbol)}
-                  className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-down"
+                  className="text-muted-foreground hover:text-down flex items-center gap-1 font-mono text-[10px]"
                 >
                   <Trash2 size={11} />
                   移除

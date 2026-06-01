@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react"
 export interface SearchResult {
   symbol: string
   name: string
+  logo?: string
   exchange: string
 }
 
@@ -15,7 +16,7 @@ interface Options {
 
 export function useSymbolSearch(
   query: string,
-  { debounceMs = 300, limit }: Options = {},
+  { debounceMs = 300, limit }: Options = {}
 ): { results: SearchResult[]; searching: boolean } {
   const [results, setResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)

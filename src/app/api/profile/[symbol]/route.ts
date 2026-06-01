@@ -1,34 +1,23 @@
 import { getProfile } from "@/lib/api/finnhub"
-import { validateSymbol } from "@/lib/validations"
+import {
+  cacheHeaders,
+  handleApiError,
+  jsonError,
+  jsonOk,
+  normalizeSymbol,
+} from "@/lib/api/response"
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ symbol: string }> }
-) {
+export async function GET(_req: Request, { params }: { params: Promise<{ symbol: string }> }) {
   try {
     const { symbol: raw } = await params
-    const symbol = raw.toUpperCase()
-
-    if (!validateSymbol(symbol)) {
-      return Response.json(
-        { error: "Invalid symbol", code: "INVALID_SYMBOL" },
-        { status: 400 }
-      )
-    }
+    const symbol = normalizeSymbol(raw)
 
     const profile = await getProfile(symbol)
     if (!profile) {
-      return Response.json(
-        { error: "Stock not found", code: "NOT_FOUND" },
-        { status: 404 }
-      )
+      return jsonError("Stock not found", "NOT_FOUND", 404)
     }
-    return Response.json(profile)
+    return jsonOk(profile, { headers: cacheHeaders(3600, 3600) })
   } catch (err) {
-    console.error("[GET /api/profile]", err)
-    return Response.json(
-      { error: "Failed to fetch profile", code: "API_ERROR" },
-      { status: 500 }
-    )
+    return handleApiError("[GET /api/profile]", err)
   }
 }

@@ -1,18 +1,12 @@
 import { getPeers, getQuotes, getProfile } from "@/lib/api/finnhub"
-import { validateSymbol } from "@/lib/validations"
+import { cacheHeaders, handleApiError, jsonOk, normalizeSymbol } from "@/lib/api/response"
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ symbol: string }> }
-) {
+export async function GET(_req: Request, { params }: { params: Promise<{ symbol: string }> }) {
   try {
     const { symbol: raw } = await params
-    const symbol = raw.toUpperCase()
-    if (!validateSymbol(symbol)) {
-      return Response.json({ error: "Invalid symbol", code: "INVALID_SYMBOL" }, { status: 400 })
-    }
+    const symbol = normalizeSymbol(raw)
     const peers = await getPeers(symbol)
-    if (peers.length === 0) return Response.json([])
+    if (peers.length === 0) return jsonOk([], { headers: cacheHeaders(3600, 3600) })
 
     // 抓報價與簡介，給前端做 mini table
     const [quotes, ...profiles] = await Promise.all([
@@ -31,9 +25,8 @@ export async function GET(
         marketCap: q?.marketCap ?? p?.marketCap ?? null,
       }
     })
-    return Response.json(data)
+    return jsonOk(data, { headers: cacheHeaders(3600, 3600) })
   } catch (err) {
-    console.error("[GET /api/peers]", err)
-    return Response.json({ error: "Failed to fetch peers", code: "API_ERROR" }, { status: 500 })
+    return handleApiError("[GET /api/peers]", err)
   }
 }
